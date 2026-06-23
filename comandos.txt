@@ -1,0 +1,31 @@
+npm install -D concurrently
+npm install -D @types/node
+npm install sonner
+
+[Unit]
+Description=Asistencias JSN
+After=network.target
+
+[Service]
+Type=simple
+User=jasanaserver
+WorkingDirectory=/home/jasanaserver/Documentos/ASISTENCIAS
+# USAR npm start para ejecutar ambos concurrentemente
+ExecStart=/bin/bash -c "npm start"
+Restart=always
+# Variables de entorno para la DB (ajusta según tus credenciales reales en el servidor)
+Environment=NODE_ENV=production
+Environment=PATH=/home/jasanaserver/.nvm/versions/node/v22.17.1/bin:/usr/bin:/bin
+# Si tus credenciales son diferentes, descomenta y edita:
+# Environment=DB_USER=postgres
+# Environment=DB_PASSWORD=tu_contraseña
+# Environment=DB_HOST=localhost
+# Environment=DB_NAME=asistencias
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+sudo systemctl daemon-reload
+sudo systemctl restart asistencias

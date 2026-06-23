@@ -1,0 +1,7 @@
+329de5361642f67f599ccf1fb5a006d02019360d  API DE ODOO
+ 
+
+ODOO_URL=https://sm-inovoo-jasana.odoo.com
+ODOO_DB=sm-inovoo-jasana-main-19453290
+ODOO_USUARIO=sistemas@uniformesjasana.com
+ODOO_API_KEY=329de5361642f67f599ccf1fb5a006d02019360d
