@@ -670,17 +670,45 @@ Responde ÚNICAMENTE con el objeto JSON válido. No incluyes markdown ni bloques
     }
 }));
 
-router.post('/odoo/send-birthday-email', asyncHandler(async (req: Request, res: Response) => {
-    const { email_to, subject, body_html, attachments } = req.body;
-    
-    if (!email_to || !subject || !body_html) {
-        return res.status(400).json({ error: 'Faltan campos requeridos (email_to, subject, body_html)' });
-    }
-
+const sendEmailHelper = async (to: string, subject: string, html: string, attachments?: any[]): Promise<{ success: boolean; message: string }> => {
     const { rows } = await pool.query('SELECT * FROM company_settings LIMIT 1');
     const settings = rows[0];
 
-    // Priority 1: Send via Direct local SMTP server if SMTP configurations are present in settings or environment
+    // Priority 1: Send via Resend HTTP API if configured (avoids SMTP port blocks on Render)
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (resendApiKey) {
+        console.log(`Sending email to ${to} via Resend HTTP API...`);
+        const fromEmail = process.env.SMTP_FROM || settings?.smtp_from || 'onboarding@resend.dev';
+        
+        const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${resendApiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                from: fromEmail,
+                to: to,
+                subject: subject,
+                html: html,
+                attachments: attachments ? attachments.map((att: any) => ({
+                    filename: att.filename,
+                    content: att.content, // base64 string
+                })) : undefined
+            })
+        });
+
+        if (response.ok) {
+            console.log(`Email successfully sent to ${to} via Resend API.`);
+            return { success: true, message: 'Correo enviado con éxito (Resend HTTP).' };
+        } else {
+            const errBody = await response.text();
+            console.error(`Resend API failed: ${errBody}`);
+            throw new Error(`Error en API de Resend: ${errBody}`);
+        }
+    }
+
+    // Priority 2: Send via SMTP
     const smtpHost = settings?.smtp_host || process.env.SMTP_HOST;
     const smtpPort = settings?.smtp_port || Number(process.env.SMTP_PORT || 587);
     const smtpSecure = settings?.smtp_secure !== undefined ? settings.smtp_secure : (process.env.SMTP_SECURE === 'true');
@@ -689,71 +717,46 @@ router.post('/odoo/send-birthday-email', asyncHandler(async (req: Request, res: 
     const smtpFrom = settings?.smtp_from || process.env.SMTP_FROM || smtpUser;
 
     if (smtpHost && smtpUser && smtpPass) {
-        try {
-            console.log(`Sending birthday email to ${email_to} directly via local SMTP server (${smtpHost})...`);
-            
-            const transporter = nodemailer.createTransport({
-                host: smtpHost,
-                port: Number(smtpPort),
-                secure: !!smtpSecure,
-                auth: {
-                    user: smtpUser,
-                    pass: smtpPass,
-                },
-                tls: {
-                    rejectUnauthorized: false
-                }
-            });
+        console.log(`Sending email to ${to} directly via local SMTP server (${smtpHost})...`);
+        const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: Number(smtpPort),
+            secure: !!smtpSecure,
+            auth: {
+                user: smtpUser,
+                pass: smtpPass,
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
 
-            await transporter.sendMail({
-                from: smtpFrom,
-                to: email_to,
-                subject: subject,
-                html: body_html,
-                attachments: attachments,
-            });
+        await transporter.sendMail({
+            from: smtpFrom,
+            to: to,
+            subject: subject,
+            html: html,
+            attachments: attachments,
+        });
 
-            return res.json({ success: true, message: 'Felicitación enviada con éxito desde el servidor local (SMTP).' });
-        } catch (smtpError: any) {
-            console.error('Direct SMTP sending failed, falling back to Odoo...', smtpError);
-        }
+        return { success: true, message: 'Correo enviado con éxito (SMTP).' };
     }
 
-    // Priority 2: Fallback to Odoo if SMTP is not configured or fails
-    if (!settings?.odoo_url || !settings?.odoo_api_key) {
-        return res.status(400).json({ error: 'Configuración de SMTP local o de Odoo incompleta.' });
+    throw new Error('Servidor de correos no configurado. Define la variable de entorno RESEND_API_KEY o las credenciales SMTP en los Ajustes del Sistema.');
+};
+
+router.post('/odoo/send-birthday-email', asyncHandler(async (req: Request, res: Response) => {
+    const { email_to, subject, body_html, attachments } = req.body;
+    
+    if (!email_to || !subject || !body_html) {
+        return res.status(400).json({ error: 'Faltan campos requeridos (email_to, subject, body_html)' });
     }
 
     try {
-        console.log(`Sending birthday email to ${email_to} via Odoo...`);
-        
-        const mailId = await callOdoo(
-            settings.odoo_url,
-            settings.odoo_db,
-            settings.odoo_username,
-            settings.odoo_api_key,
-            'mail.mail',
-            'create',
-            [{
-                subject: subject,
-                email_to: email_to,
-                body_html: body_html,
-                auto_delete: false
-            }]
-        );
-
-        await callOdoo(
-            settings.odoo_url,
-            settings.odoo_db,
-            settings.odoo_username,
-            settings.odoo_api_key,
-            'mail.mail',
-            'send',
-            [[mailId]]
-        );
-
-        res.json({ success: true, message: 'Felicitación enviada con éxito a través de Odoo.' });
+        const result = await sendEmailHelper(email_to, subject, body_html, attachments);
+        res.json(result);
     } catch (error: any) {
+        console.error('Error sending birthday email:', error);
         res.status(500).json({ error: error.message });
     }
 }));
@@ -897,74 +900,12 @@ router.post('/auth/forgot-password', asyncHandler(async (req: Request, res: Resp
     );
 
     // Get SMTP settings from company_settings or env
-    const { rows: settingsRows } = await pool.query('SELECT * FROM company_settings LIMIT 1');
-    const settings = settingsRows[0];
-
-    const smtpHost = settings?.smtp_host || process.env.SMTP_HOST;
-    const smtpPort = settings?.smtp_port || Number(process.env.SMTP_PORT || 587);
-    const smtpSecure = settings?.smtp_secure !== undefined ? settings.smtp_secure : (process.env.SMTP_SECURE === 'true');
-    const smtpUser = settings?.smtp_user || process.env.SMTP_USER;
-    const smtpPass = settings?.smtp_pass || process.env.SMTP_PASS;
-    const smtpFrom = settings?.smtp_from || process.env.SMTP_FROM || smtpUser;
-
-    if (!smtpHost || !smtpUser || !smtpPass) {
-        return res.status(500).json({ 
-            error: 'El servidor de correo (SMTP) no está configurado en los Ajustes del Sistema. Por favor, configúrelo en la pestaña Reportes / Odoo > Ajustes Generales.' 
-        });
-    }
-
     try {
-        console.log(`Sending temporary password recovery email to ${user.email}...`);
-        
-        const transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: Number(smtpPort),
-            secure: !!smtpSecure,
-            auth: {
-                user: smtpUser,
-                pass: smtpPass,
-            },
-            tls: {
-                rejectUnauthorized: false
-            }
-        });
-
-        const bodyHtml = `
-<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #334155; background-color: #f8fafc; border-radius: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
-  <div style="text-align: center; margin-bottom: 30px;">
-    <h2 style="color: #714B67; font-size: 28px; font-weight: 800; margin: 0;">Restablecer Contraseña</h2>
-    <p style="color: #64748b; font-size: 14px; margin-top: 8px;">Sistema de Control de Asistencias JASANA</p>
-  </div>
-  
-  <div style="background-color: #ffffff; padding: 40px; border-radius: 16px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);">
-    <p style="font-size: 16px; line-height: 1.6; margin-top: 0; color: #334155;">Hola,</p>
-    <p style="font-size: 16px; line-height: 1.6; color: #334155;">Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de Administrador Maestro (${username}).</p>
-    <p style="font-size: 16px; line-height: 1.6; color: #334155;">Tu contraseña temporal de 6 dígitos es:</p>
-    
-    <div style="text-align: center; margin: 30px 0;">
-      <span style="display: inline-block; font-family: monospace; font-size: 36px; font-weight: 800; color: #714B67; letter-spacing: 6px; padding: 12px 30px; background-color: #f5f3f5; border: 1.5px dashed #714B67; border-radius: 12px; min-width: 180px;">${code}</span>
-    </div>
-    
-    <p style="font-size: 14px; color: #e11d48; font-weight: 600; line-height: 1.6; margin-bottom: 0;">⚠️ IMPORTANTE: Por razones de seguridad, deberás actualizar esta contraseña temporal inmediatamente después de iniciar sesión.</p>
-  </div>
-  
-  <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #94a3b8;">
-    <p style="margin: 0;">Este es un correo automático. Por favor, no respondas a este mensaje.</p>
-  </div>
-</div>
-        `.trim();
-
-        await transporter.sendMail({
-            from: smtpFrom,
-            to: user.email,
-            subject: 'Tu contraseña temporal - JASANA',
-            html: bodyHtml,
-        });
-
+        await sendEmailHelper(user.email, 'Tu contraseña temporal - JASANA', bodyHtml);
         res.json({ success: true, message: 'Se ha enviado un correo con tu contraseña temporal.' });
-    } catch (smtpError: any) {
-        console.error('SMTP forgot password email sending failed:', smtpError);
-        res.status(500).json({ error: `Error al enviar el correo: ${smtpError.message}` });
+    } catch (emailError: any) {
+        console.error('Password recovery email sending failed:', emailError);
+        res.status(500).json({ error: `Error al enviar el correo: ${emailError.message}` });
     }
 }));
 
