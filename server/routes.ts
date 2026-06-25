@@ -901,6 +901,15 @@ router.post('/auth/forgot-password', asyncHandler(async (req: Request, res: Resp
 
     // Get SMTP settings from company_settings or env
     try {
+        const bodyHtml = `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>Recuperación de Contraseña - JASANA</h2>
+                <p>Hola, has solicitado restablecer tu contraseña.</p>
+                <p>Tu contraseña temporal es: <strong>${code}</strong></p>
+                <p>Por favor, inicia sesión con esta contraseña y cámbiala inmediatamente por seguridad.</p>
+            </div>
+        `;
+        
         await sendEmailHelper(user.email, 'Tu contraseña temporal - JASANA', bodyHtml);
         res.json({ success: true, message: 'Se ha enviado un correo con tu contraseña temporal.' });
     } catch (emailError: any) {
