@@ -98,17 +98,17 @@ export async function generateAttendanceReport(
     row2.getCell(1).value = 'NO. NÓMINA'; row2.getCell(1).font = { bold: true }; row2.getCell(1).fill = headerFill; row2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     row2.getCell(2).value = employeeNumber; row2.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
     row2.getCell(3).value = 'NOMBRE'; row2.getCell(3).font = { bold: true }; row2.getCell(3).fill = headerFill; row2.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
-    worksheet.mergeCells('D2:G2'); row2.getCell(4).value = empleadoNombre; row2.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
+    worksheet.mergeCells('D2:G2'); row2.getCell(4).value = empleadoNombre.toUpperCase(); row2.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
 
     const row3 = worksheet.getRow(3);
     worksheet.mergeCells('A3:B3'); row3.getCell(1).value = 'DEL'; row3.getCell(1).font = { bold: true }; row3.getCell(1).fill = headerFill; row3.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    worksheet.mergeCells('C3:D3'); row3.getCell(3).value = fecha_inicio.toLocaleDateString('es-MX'); row3.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.mergeCells('C3:D3'); row3.getCell(3).value = fecha_inicio.toLocaleDateString('es-MX').toUpperCase(); row3.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('E3:F3'); row3.getCell(5).value = 'AL'; row3.getCell(5).font = { bold: true }; row3.getCell(5).fill = headerFill; row3.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-    worksheet.mergeCells('G3:H3'); row3.getCell(7).value = fecha_fin.toLocaleDateString('es-MX'); row3.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.mergeCells('G3:H3'); row3.getCell(7).value = fecha_fin.toLocaleDateString('es-MX').toUpperCase(); row3.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
 
     const row4 = worksheet.getRow(4);
     worksheet.mergeCells('A4:D4'); row4.getCell(1).value = 'HORARIO'; row4.getCell(1).font = { bold: true }; row4.getCell(1).fill = headerFill; row4.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    worksheet.mergeCells('E4:H4'); row4.getCell(5).value = scheduleInfo.horario; row4.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.mergeCells('E4:H4'); row4.getCell(5).value = scheduleInfo.horario.toUpperCase(); row4.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
 
     const row6 = worksheet.getRow(6), row7 = worksheet.getRow(7);
     row6.values = ['DIA', 'ENTRADA', 'DESAYUNO', '', 'COMIDA', '', 'SALIDA', 'OBSERVACIONES']; worksheet.mergeCells('C6:D6'); worksheet.mergeCells('E6:F6');
@@ -166,10 +166,10 @@ export async function generateAttendanceReport(
       const matchingObs = globalObservations.filter(o => o.date === dateKey);
 
       if (perm) observacion = 'PERMISO';
-      else if (matchingObs.length > 0) observacion = matchingObs.map(o => o.text).join(' / ');
+      else if (matchingObs.length > 0) observacion = matchingObs.map(o => o.text.toUpperCase()).join(' / ');
       else if (dayRecs.length === 0 && current.getDay() >= 1 && current.getDay() <= 5) { observacion = 'FALTA'; faltas++; }
 
-      const dataRow = worksheet.getRow(currentRowIndex); dataRow.values = [formatDate(current), formatTime(entrada), formatTime(sD), formatTime(eD), formatTime(sC), formatTime(eC), formatTime(salida), observacion];
+      const dataRow = worksheet.getRow(currentRowIndex); dataRow.values = [formatDate(current).toUpperCase(), formatTime(entrada), formatTime(sD), formatTime(eD), formatTime(sC), formatTime(eC), formatTime(salida), observacion];
       for (let col = 1; col <= 8; col++) {
         const c = dataRow.getCell(col);
         c.border = thinBorder;
@@ -182,22 +182,22 @@ export async function generateAttendanceReport(
     }
     const resRow = worksheet.getRow(currentRowIndex + 1);
     const sumMinutosRetardo = `${minutosRetardo} min`;
-    resRow.values = ['Retardos', retardos, sumMinutosRetardo, 'Faltas', faltas, '', 'Hrs.Extra:', minutosExtra > 60 ? `${Math.floor(minutosExtra / 60)}:${(minutosExtra % 60).toString().padStart(2, '0')}` : '0:00'];
+    resRow.values = ['RETARDOS', retardos, sumMinutosRetardo, 'FALTAS', faltas, '', 'HRS.EXTRA:', minutosExtra > 60 ? `${Math.floor(minutosExtra / 60)}:${(minutosExtra % 60).toString().padStart(2, '0')}` : '0:00'];
     for (let col = 1; col <= 8; col++) { const c = resRow.getCell(col); c.font = { bold: true }; c.border = thinBorder; c.alignment = { horizontal: 'center', vertical: 'middle' }; }
     const fIdx = currentRowIndex + 6;
     const nRow = worksheet.getRow(fIdx + 1);
-    worksheet.mergeCells(`C${fIdx + 1}:F${fIdx + 1}`);
-    for (let col = 3; col <= 6; col++) {
+    worksheet.mergeCells(`B${fIdx + 1}:G${fIdx + 1}`);
+    for (let col = 2; col <= 7; col++) {
       nRow.getCell(col).border = { top: { style: 'medium' } };
     }
-    nRow.getCell(3).value = empleadoNombre;
-    nRow.getCell(3).font = { bold: true, size: 11 };
-    nRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+    nRow.getCell(2).value = empleadoNombre.toUpperCase();
+    nRow.getCell(2).font = { bold: true, size: 11 };
+    nRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
     const dRow = worksheet.getRow(fIdx + 2);
-    worksheet.mergeCells(`C${fIdx + 2}:F${fIdx + 2}`);
-    dRow.getCell(3).value = employeeData?.department || '';
-    dRow.getCell(3).font = { italic: true, size: 10 };
-    dRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.mergeCells(`B${fIdx + 2}:G${fIdx + 2}`);
+    dRow.getCell(2).value = (employeeData?.department || '').toUpperCase();
+    dRow.getCell(2).font = { italic: true, size: 10 };
+    dRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
   }
   const buffer = await workbook.xlsx.writeBuffer();
   const today = new Date();
