@@ -85,7 +85,7 @@ router.put('/employees/:id', asyncHandler(async (req: Request, res: Response) =>
 
 router.delete('/employees/:id', asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    await pool.query('DELETE FROM employees WHERE id = $1', [id]);
+    await pool.query("DELETE FROM employees WHERE id = $1 AND employee_number != 'admin'", [id]);
     res.json({ success: true });
 }));
 
@@ -94,8 +94,8 @@ router.delete('/employees', asyncHandler(async (req: Request, res: Response) => 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        await client.query('DELETE FROM permissions');
-        await client.query('DELETE FROM employees');
+        await client.query("DELETE FROM permissions WHERE employee_id IN (SELECT id FROM employees WHERE employee_number != 'admin')");
+        await client.query("DELETE FROM employees WHERE employee_number != 'admin'");
         await client.query('COMMIT');
         res.json({ success: true });
     } catch (error) {
@@ -116,15 +116,44 @@ router.post('/employees/batch', asyncHandler(async (req: Request, res: Response)
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+        
+        // Fetch all schedules to map name -> id
+        const { rows: schedules } = await client.query('SELECT id, name FROM schedules');
+        const scheduleMap = new Map();
+        schedules.forEach(s => scheduleMap.set(s.name.trim().toLowerCase(), s.id));
+
+        // Fetch all areas to map name -> id
+        const { rows: areas } = await client.query('SELECT id, name FROM areas');
+        const areaMap = new Map();
+        areas.forEach(a => areaMap.set(a.name.trim().toLowerCase(), a.id));
+
         for (const emp of employees) {
             const validated = employeeSchema.parse(emp);
+            
+            let finalScheduleId = validated.schedule_id;
+            if (!finalScheduleId && validated.schedule_name) {
+                const sName = validated.schedule_name.trim().toLowerCase();
+                if (scheduleMap.has(sName)) {
+                    finalScheduleId = scheduleMap.get(sName);
+                }
+            }
+            
+            let finalAreaId = validated.area_id;
+            if (!finalAreaId && validated.area_name) {
+                const aName = validated.area_name.trim().toLowerCase();
+                if (areaMap.has(aName)) {
+                    finalAreaId = areaMap.get(aName);
+                }
+            }
+
             await client.query(
-                `INSERT INTO employees (full_name, employee_number, no_empleado, department, schedule_id, entry_time, exit_time, breakfast_start_time, breakfast_end_time, lunch_start_time, lunch_end_time, tolerance_minutes, payment_period) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+                `INSERT INTO employees (full_name, employee_number, no_empleado, department, area_id, schedule_id, entry_time, exit_time, breakfast_start_time, breakfast_end_time, lunch_start_time, lunch_end_time, tolerance_minutes, payment_period, position) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
                  ON CONFLICT (employee_number) DO UPDATE SET 
                  full_name = EXCLUDED.full_name, 
                  no_empleado = EXCLUDED.no_empleado,
                  department = EXCLUDED.department,
+                 area_id = EXCLUDED.area_id,
                  schedule_id = EXCLUDED.schedule_id,
                  entry_time = EXCLUDED.entry_time,
                  exit_time = EXCLUDED.exit_time,
@@ -133,8 +162,9 @@ router.post('/employees/batch', asyncHandler(async (req: Request, res: Response)
                  lunch_start_time = EXCLUDED.lunch_start_time,
                  lunch_end_time = EXCLUDED.lunch_end_time,
                  tolerance_minutes = EXCLUDED.tolerance_minutes,
-                 payment_period = EXCLUDED.payment_period`,
-                [validated.full_name, validated.employee_number, validated.no_empleado || '', validated.department, validated.schedule_id, validated.entry_time, validated.exit_time, validated.breakfast_start_time, validated.breakfast_end_time, validated.lunch_start_time, validated.lunch_end_time, validated.tolerance_minutes, validated.payment_period]
+                 payment_period = EXCLUDED.payment_period,
+                 position = EXCLUDED.position`,
+                [validated.full_name, validated.employee_number, validated.no_empleado || '', validated.department, finalAreaId, finalScheduleId, validated.entry_time, validated.exit_time, validated.breakfast_start_time, validated.breakfast_end_time, validated.lunch_start_time, validated.lunch_end_time, validated.tolerance_minutes, validated.payment_period, validated.position || '']
             );
         }
         await client.query('COMMIT');

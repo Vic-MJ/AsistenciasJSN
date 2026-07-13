@@ -25,6 +25,7 @@ export const employeeSchema = z.object({
     area_id: z.string().uuid().nullable().optional(),
     position: z.string().optional(),
     schedule_id: z.string().uuid().nullable().optional(),
+    schedule_name: z.string().optional(),
     entry_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Hora de entrada inválida').optional(),
     exit_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Hora de salida inválida').optional(),
     breakfast_start_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Hora de inicio de desayuno inválida').optional(),

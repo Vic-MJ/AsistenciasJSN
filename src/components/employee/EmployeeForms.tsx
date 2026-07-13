@@ -49,15 +49,22 @@ export default function EmployeeForms({ onSuccess }: EmployeeFormsProps) {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: ['name', 'number'] });
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
 
       const employeesToInsert = jsonData
         .slice(1)
-        .filter((row: any) => row.name && row.number)
+        .filter((row: any) => row[1] && row[2]) // Name (index 1) and employee number (index 2) are required
         .map((row: any) => ({
-          full_name: String(row.name).trim(),
-          employee_number: String(row.number).trim(),
-          department: ''
+          full_name: String(row[1]).trim(),
+          employee_number: String(row[2]).trim(),
+          department: row[3] ? String(row[3]).trim() : '',
+          area_name: row[3] ? String(row[3]).trim() : undefined,
+          position: row[4] ? String(row[4]).trim() : undefined,
+          payment_period: (row[5] && String(row[5]).toLowerCase() === 'quincenal') ? 'quincenal' : 'semanal',
+          schedule_name: row[6] ? String(row[6]).trim() : undefined,
+          entry_time: row[7] ? String(row[7]).trim() : undefined,
+          exit_time: row[8] ? String(row[8]).trim() : undefined,
+          tolerance_minutes: row[9] && !isNaN(Number(row[9])) ? Number(row[9]) : undefined
         }));
 
       if (employeesToInsert.length === 0) {
@@ -164,7 +171,7 @@ export default function EmployeeForms({ onSuccess }: EmployeeFormsProps) {
             <p className="text-sm font-semibold text-white tracking-tight">Arrastra tu Archivo</p>
             <div className="flex items-center justify-center gap-2 mt-2">
                <div className="w-1 h-1 rounded-full bg-emerald-400" />
-               <p className="text-[9px] text-white/40 font-semibold uppercase tracking-wider">Col 1: Nombre | Col 2: No.</p>
+               <p className="text-[9px] text-white/40 font-semibold uppercase tracking-wider">Usa la plantilla oficial para importar</p>
             </div>
           </div>
         </div>
