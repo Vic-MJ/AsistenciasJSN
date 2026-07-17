@@ -47,7 +47,7 @@ router.put('/employees/bulk', asyncHandler(async (req: Request, res: Response) =
 
     const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
     const values = Object.values(data);
-    
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -89,7 +89,6 @@ router.delete('/employees/:id', asyncHandler(async (req: Request, res: Response)
     res.json({ success: true });
 }));
 
-// Delete all employees
 router.delete('/employees', asyncHandler(async (req: Request, res: Response) => {
     const client = await pool.connect();
     try {
@@ -116,7 +115,7 @@ router.post('/employees/batch', asyncHandler(async (req: Request, res: Response)
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        
+
         // Fetch all schedules to map name -> id
         const { rows: schedules } = await client.query('SELECT id, name FROM schedules');
         const scheduleMap = new Map();
@@ -129,7 +128,7 @@ router.post('/employees/batch', asyncHandler(async (req: Request, res: Response)
 
         for (const emp of employees) {
             const validated = employeeSchema.parse(emp);
-            
+
             let finalScheduleId = validated.schedule_id;
             if (!finalScheduleId && validated.schedule_name) {
                 const sName = validated.schedule_name.trim().toLowerCase();
@@ -137,7 +136,7 @@ router.post('/employees/batch', asyncHandler(async (req: Request, res: Response)
                     finalScheduleId = scheduleMap.get(sName);
                 }
             }
-            
+
             let finalAreaId = validated.area_id;
             if (!finalAreaId && validated.area_name) {
                 const aName = validated.area_name.trim().toLowerCase();
@@ -330,7 +329,7 @@ router.put('/settings', asyncHandler(async (req: Request, res: Response) => {
 // Odoo Integration
 const callOdoo = async (url: string, db: string, username: string, apiKey: string, model: string, method: string, args: any[], kwargs: any = {}) => {
     const jsonRpcUrl = `${url.replace(/\/$/, '')}/jsonrpc`;
-    
+
     // 1. Authenticate
     const authBody = {
         jsonrpc: '2.0',
@@ -348,14 +347,14 @@ const callOdoo = async (url: string, db: string, username: string, apiKey: strin
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(authBody)
     });
-    
+
     if (!authRes.ok) throw new Error(`Odoo auth failed: ${authRes.statusText}`);
     const authData: any = await authRes.json();
-    
+
     if (authData.error) {
         throw new Error(`Odoo auth error: ${authData.error.data?.message || authData.error.message}`);
     }
-    
+
     const uid = authData.result;
     if (!uid) throw new Error('Odoo authentication failed: Invalid credentials');
 
@@ -376,20 +375,20 @@ const callOdoo = async (url: string, db: string, username: string, apiKey: strin
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(callBody)
     });
-    
+
     if (!callRes.ok) throw new Error(`Odoo call failed: ${callRes.statusText}`);
     const callData: any = await callRes.json();
-    
+
     if (callData.error) {
         throw new Error(`Odoo API error: ${callData.error.data?.message || callData.error.message}`);
     }
-    
+
     return callData.result;
 };
 
 router.post('/odoo/test-connection', asyncHandler(async (req: Request, res: Response) => {
     const { odoo_url, odoo_db, odoo_username, odoo_api_key } = req.body;
-    
+
     try {
         const result = await callOdoo(odoo_url, odoo_db, odoo_username, odoo_api_key, 'res.users', 'search_count', [[]]);
         res.json({ success: true, message: 'Conexión exitosa' });
@@ -400,11 +399,11 @@ router.post('/odoo/test-connection', asyncHandler(async (req: Request, res: Resp
 
 router.post('/odoo/attendance', asyncHandler(async (req: Request, res: Response) => {
     const { start_date, end_date, employee_ids, payment_period } = req.body;
-    
+
     // Get credentials from DB
     const { rows } = await pool.query('SELECT * FROM company_settings LIMIT 1');
     const settings = rows[0];
-    
+
     if (!settings?.odoo_url || !settings?.odoo_api_key) {
         return res.status(400).json({ error: 'Configuración de Odoo incompleta' });
     }
@@ -428,12 +427,12 @@ router.post('/odoo/attendance', asyncHandler(async (req: Request, res: Response)
         // If we have specific names to filter, we need to find their Odoo IDs first
         if (namesToFilter.length > 0) {
             const odooEmpIds = await callOdoo(
-                settings.odoo_url, 
-                settings.odoo_db, 
-                settings.odoo_username, 
-                settings.odoo_api_key, 
-                'hr.employee', 
-                'search', 
+                settings.odoo_url,
+                settings.odoo_db,
+                settings.odoo_username,
+                settings.odoo_api_key,
+                'hr.employee',
+                'search',
                 [[['name', 'in', namesToFilter]]]
             );
 
@@ -443,13 +442,13 @@ router.post('/odoo/attendance', asyncHandler(async (req: Request, res: Response)
             domain.push(['employee_id', 'in', odooEmpIds]);
         }
         const result = await callOdoo(
-            settings.odoo_url, 
-            settings.odoo_db, 
-            settings.odoo_username, 
-            settings.odoo_api_key, 
-            'hr.attendance', 
-            'search_read', 
-            [domain], 
+            settings.odoo_url,
+            settings.odoo_db,
+            settings.odoo_username,
+            settings.odoo_api_key,
+            'hr.attendance',
+            'search_read',
+            [domain],
             { fields: ['id', 'employee_id', 'check_in', 'check_out', 'worked_hours'] }
         );
 
@@ -464,7 +463,7 @@ router.post('/odoo/attendance', asyncHandler(async (req: Request, res: Response)
             for (const rec of result) {
                 const empName = rec.employee_id[1];
                 const empId = empMap.get(empName.toLowerCase());
-                
+
                 await client.query(`
                     INSERT INTO attendance_logs (employee_id, employee_name, check_in, check_out, worked_hours, odoo_id, source)
                     VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -473,12 +472,12 @@ router.post('/odoo/attendance', asyncHandler(async (req: Request, res: Response)
                     check_out = EXCLUDED.check_out,
                     worked_hours = EXCLUDED.worked_hours
                 `, [
-                    empId || null, 
-                    empName, 
-                    rec.check_in, 
-                    rec.check_out === false ? null : rec.check_out, 
-                    rec.worked_hours || 0, 
-                    rec.id, 
+                    empId || null,
+                    empName,
+                    rec.check_in,
+                    rec.check_out === false ? null : rec.check_out,
+                    rec.worked_hours || 0,
+                    rec.id,
                     'odoo'
                 ]);
             }
@@ -511,14 +510,14 @@ router.post('/odoo/sync-birthdays', asyncHandler(async (req: Request, res: Respo
     // Get credentials from DB
     const { rows } = await pool.query('SELECT * FROM company_settings LIMIT 1');
     const settings = rows[0];
-    
+
     if (!settings?.odoo_url || !settings?.odoo_api_key) {
         return res.status(400).json({ error: 'Configuración de Odoo incompleta' });
     }
 
     try {
         console.log('Syncing employee birthdays from Odoo...');
-        
+
         let result: any[] = [];
         try {
             // Fetch exactly the needed fields that we know exist
@@ -596,7 +595,7 @@ router.post('/odoo/sync-birthdays', asyncHandler(async (req: Request, res: Respo
                         RETURNING id
                     `, [birthday, work_email, zodiac_sign, private_email, no_empleado, name]);
                 }
-                
+
                 if (updateRes.rows.length > 0) {
                     updatedCount++;
                 }
@@ -627,8 +626,8 @@ router.post('/generate-birthday-message', asyncHandler(async (req: Request, res:
     const apiKey = settings?.gemini_api_key || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-        return res.status(400).json({ 
-            error: 'No se encontró la Gemini API Key. Configúrala en Ajustes del Sistema para usar la IA.' 
+        return res.status(400).json({
+            error: 'No se encontró la Gemini API Key. Configúrala en Ajustes del Sistema para usar la IA.'
         });
     }
 
@@ -687,7 +686,7 @@ Responde ÚNICAMENTE con el objeto JSON válido. No incluyes markdown ni bloques
 
         const data: any = await response.json();
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        
+
         if (!textResponse) {
             throw new Error('La respuesta de Gemini no contiene texto válido');
         }
@@ -709,7 +708,7 @@ const sendEmailHelper = async (to: string, subject: string, html: string, attach
     if (resendApiKey) {
         console.log(`Sending email to ${to} via Resend HTTP API...`);
         const fromEmail = process.env.SMTP_FROM || settings?.smtp_from || 'onboarding@resend.dev';
-        
+
         const response = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
@@ -777,7 +776,7 @@ const sendEmailHelper = async (to: string, subject: string, html: string, attach
 
 router.post('/odoo/send-birthday-email', asyncHandler(async (req: Request, res: Response) => {
     const { email_to, subject, body_html, attachments } = req.body;
-    
+
     if (!email_to || !subject || !body_html) {
         return res.status(400).json({ error: 'Faltan campos requeridos (email_to, subject, body_html)' });
     }
@@ -804,7 +803,7 @@ router.get('/attendance-logs', asyncHandler(async (req: Request, res: Response) 
         params.push(start_date, end_date);
     }
     query += ' ORDER BY l.check_in DESC';
-    
+
     const { rows } = await pool.query(query, params);
     res.json(rows);
 }));
@@ -823,7 +822,7 @@ router.get('/users', asyncHandler(async (req: Request, res: Response) => {
 router.post('/users', asyncHandler(async (req: Request, res: Response) => {
     const validated = userSchema.parse(req.body);
     const { employee_id, username, password, role } = validated;
-    
+
     // Check if employee already has a user
     const existing = await pool.query('SELECT id FROM users WHERE employee_id = $1', [employee_id]);
     if (existing.rows.length > 0) {
@@ -873,7 +872,7 @@ router.put('/users/:id', asyncHandler(async (req: Request, res: Response) => {
 
 router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     const { username, password } = req.body;
-    
+
     if (!username || !password) {
         return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
     }
@@ -939,7 +938,7 @@ router.post('/auth/forgot-password', asyncHandler(async (req: Request, res: Resp
                 <p>Por favor, inicia sesión con esta contraseña y cámbiala inmediatamente por seguridad.</p>
             </div>
         `;
-        
+
         await sendEmailHelper(user.email, 'Tu contraseña temporal - JASANA', bodyHtml);
         res.json({ success: true, message: 'Se ha enviado un correo con tu contraseña temporal.' });
     } catch (emailError: any) {
@@ -1003,13 +1002,13 @@ router.post('/auth/update-profile', asyncHandler(async (req: Request, res: Respo
     }
 
     const { rows } = await pool.query(query, params);
-    
+
     if (rows.length === 0) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const updatedUser = rows[0];
-    
+
     // Fetch full_name from employees
     const { rows: empRows } = await pool.query(
         'SELECT full_name FROM employees WHERE id = $1',

@@ -165,12 +165,12 @@ export async function generateAttendanceReport(
           const minED = timeToMinutes(formatTime(eD));
           const mealTime = minED - minSD;
           const allowed = hasLongSchedule ? 20 : 0;
-          if (allowed > 0 && mealTime > allowed + 3) {
+          /*if (allowed > 0 && mealTime > allowed + 3) {
             isBreakfastLate = true;
             observacion = observacion ? observacion + ' / RETARDO COMIDA' : 'RETARDO COMIDA';
             retardosComida++;
             minutosRetardoComida += mealTime - (allowed + 3);
-          }
+          }*/
         }
         
         if (sC && eC) {
@@ -178,12 +178,12 @@ export async function generateAttendanceReport(
           const minEC = timeToMinutes(formatTime(eC));
           const mealTime = minEC - minSC;
           const allowed = hasLongSchedule ? 40 : 20;
-          if (mealTime > allowed + 3) {
+          /*if (mealTime > allowed + 3) {
             isLunchLate = true;
             observacion = observacion && !observacion.includes('RETARDO COMIDA') ? observacion + ' / RETARDO COMIDA' : (observacion || 'RETARDO COMIDA');
             retardosComida++;
             minutosRetardoComida += mealTime - (allowed + 3);
-          }
+          }*/
         }
 
         if (salida && entrada) { const sM = timeToMinutes(formatTime(salida)), eM = timeToMinutes(formatTime(entrada)); let ex = current.getDay() === 6 || current.getDay() === 0 ? sM - eM : sM - timeToMinutes(scheduleInfo.horaSalidaNormal); if (ex > 0) minutosExtra += ex; }
@@ -220,12 +220,12 @@ export async function generateAttendanceReport(
     const resRow1 = worksheet.getRow(currentRowIndex + 1);
     resRow1.values = ['RET. INGRESO', retardosIngreso, `${minutosRetardoIngreso} min`, 'FALTAS', faltas, 'TIEMPO EXTRA', '', minutosExtra > 15 ? `${Math.floor(minutosExtra / 60)}:${(minutosExtra % 60).toString().padStart(2, '0')} hrs` : '0:00 hrs'];
     
-    const resRow2 = worksheet.getRow(currentRowIndex + 2);
-    resRow2.values = ['RET. COMIDA', retardosComida, `${minutosRetardoComida} min`, '', '', '', '', ''];
+    /*const resRow2 = worksheet.getRow(currentRowIndex + 2);
+    resRow2.values = ['RET. COMIDA', retardosComida, `${minutosRetardoComida} min`, '', '', '', '', ''];*/
 
     worksheet.mergeCells(`F${currentRowIndex + 1}:G${currentRowIndex + 1}`);
-    worksheet.mergeCells(`D${currentRowIndex + 2}:E${currentRowIndex + 2}`);
-    worksheet.mergeCells(`F${currentRowIndex + 2}:H${currentRowIndex + 2}`);
+    /*worksheet.mergeCells(`D${currentRowIndex + 2}:E${currentRowIndex + 2}`);
+    worksheet.mergeCells(`F${currentRowIndex + 2}:H${currentRowIndex + 2}`);*/
 
     for (let col = 1; col <= 8; col++) { 
       const c1 = resRow1.getCell(col); 
@@ -238,7 +238,7 @@ export async function generateAttendanceReport(
         c1.font = { bold: true };
       }
       
-      const c2 = resRow2.getCell(col); 
+      /*const c2 = resRow2.getCell(col); 
       c2.border = thinBorder; 
       c2.alignment = { horizontal: 'center', vertical: 'middle' }; 
       if (col === 1) {
@@ -246,7 +246,7 @@ export async function generateAttendanceReport(
         c2.fill = summaryFill;
       } else {
         c2.font = { bold: true };
-      }
+      }*/
     }
     
     const fIdx = currentRowIndex + 7;

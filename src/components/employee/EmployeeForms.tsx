@@ -53,7 +53,7 @@ export default function EmployeeForms({ onSuccess }: EmployeeFormsProps) {
 
       const employeesToInsert = jsonData
         .slice(1)
-        .filter((row: any) => row[1] && row[2]) // Name (index 1) and employee number (index 2) are required
+        .filter((row: any) => row[1] && row[2])
         .map((row: any) => ({
           full_name: String(row[1]).trim(),
           employee_number: String(row[2]).trim(),
@@ -170,8 +170,8 @@ export default function EmployeeForms({ onSuccess }: EmployeeFormsProps) {
             </div>
             <p className="text-sm font-semibold text-white tracking-tight">Arrastra tu Archivo</p>
             <div className="flex items-center justify-center gap-2 mt-2">
-               <div className="w-1 h-1 rounded-full bg-emerald-400" />
-               <p className="text-[9px] text-white/40 font-semibold uppercase tracking-wider">Usa la plantilla oficial para importar</p>
+              <div className="w-1 h-1 rounded-full bg-emerald-400" />
+              <p className="text-[9px] text-white/40 font-semibold uppercase tracking-wider">Usa la plantilla oficial para importar</p>
             </div>
           </div>
         </div>
