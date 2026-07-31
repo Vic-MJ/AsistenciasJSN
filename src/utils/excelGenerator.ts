@@ -78,6 +78,16 @@ export async function generateAttendanceReport(
     });
 
     const worksheet = workbook.addWorksheet(empleadoNombre.substring(0, 31));
+    worksheet.pageSetup = {
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: {
+        left: 0.25, right: 0.25,
+        top: 0.75, bottom: 0.75,
+        header: 0.3, footer: 0.3
+      }
+    };
     worksheet.columns = [{ width: 17 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 12 }, { width: 22 }];
 
     if (logoDataUrl) {
@@ -249,7 +259,7 @@ export async function generateAttendanceReport(
       }*/
     }
     
-    const fIdx = currentRowIndex + 7;
+    const fIdx = currentRowIndex + 4;
     const nRow = worksheet.getRow(fIdx + 1);
     worksheet.mergeCells(`B${fIdx + 1}:G${fIdx + 1}`);
     for (let col = 2; col <= 7; col++) {
