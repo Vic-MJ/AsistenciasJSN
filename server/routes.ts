@@ -186,9 +186,10 @@ router.get('/permissions', asyncHandler(async (req: Request, res: Response) => {
 router.post('/permissions', asyncHandler(async (req: Request, res: Response) => {
     const validated = permissionSchema.parse(req.body);
     const { employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement, is_compensation_paid } = validated;
+    const cleanDate = permission_date.split('T')[0];
     const { rows } = await pool.query(
         'INSERT INTO permissions (employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement, is_compensation_paid) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-        [employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement || '', Boolean(is_compensation_paid)]
+        [employee_id, permission_type, reason, reason_other, cleanDate, exit_time, entry_time, time_compensation_agreement || '', Boolean(is_compensation_paid)]
     );
     res.json(rows[0]);
 }));
@@ -196,6 +197,9 @@ router.post('/permissions', asyncHandler(async (req: Request, res: Response) => 
 router.put('/permissions/:id', asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const validated = permissionSchema.partial().parse(req.body);
+    if (validated.permission_date) {
+        validated.permission_date = validated.permission_date.split('T')[0];
+    }
     const fields = Object.keys(validated);
     if (fields.length === 0) {
         return res.status(400).json({ error: 'No fields to update' });

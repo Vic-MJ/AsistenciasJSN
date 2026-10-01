@@ -49,10 +49,12 @@ export async function generateIncidentsReport(
     const employeeMap = new Map(employees.map(emp => [normalizeText(emp.full_name), emp]));
     const uniqueEmployees = [...new Set(attendanceRecords.map(r => r.empleado))].sort((a, b) => a.localeCompare(b));
 
-    const globalStart = new Date(startDateInput + 'T00:00:00');
+    const [sYear, sMonth, sDay] = startDateInput.split('-').map(Number);
+    const globalStart = new Date(sYear, sMonth - 1, sDay, 12, 0, 0);
     globalStart.setDate(globalStart.getDate() - (globalStart.getDay() - 5 + 7) % 7);
 
-    const globalEnd = new Date(endDateInput + 'T23:59:59');
+    const [eYear, eMonth, eDay] = endDateInput.split('-').map(Number);
+    const globalEnd = new Date(eYear, eMonth - 1, eDay, 12, 0, 0);
     globalEnd.setDate(globalEnd.getDate() + (4 - globalEnd.getDay() + 7) % 7);
 
     detailsSheet.columns = [{ header: 'No. Empleado', key: 'no', width: 12 }, { header: 'Nombre', key: 'nombre', width: 30 }, { header: 'Departamento', key: 'depto', width: 20 }, { header: 'Fecha', key: 'fecha', width: 30 }, { header: 'Tipo Incidencia', key: 'tipo', width: 15 }, { header: 'Detalle', key: 'detalle', width: 50 }, { header: 'Justificación', key: 'justif', width: 30 }];

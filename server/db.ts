@@ -1,5 +1,8 @@
 import pg from 'pg';
-const { Pool } = pg;
+const { Pool, types } = pg;
+
+// Prevent timezone conversion on DATE columns (OID 1082) - return raw 'YYYY-MM-DD' string
+types.setTypeParser(1082, (str: string) => str);
 
 export const pool = process.env.DATABASE_URL
   ? new Pool({

@@ -133,12 +133,15 @@ export default function PermissionForm() {
   };
 
   const handleEdit = (perm: Permission) => {
+    const cleanDate = typeof perm.permission_date === 'string'
+      ? perm.permission_date.split('T')[0]
+      : '';
     setForm({
       employee_id: perm.employee_id,
       permission_type: perm.permission_type,
       reason: perm.reason,
       reason_other: perm.reason_other || '',
-      permission_date: perm.permission_date,
+      permission_date: cleanDate,
       exit_time: perm.exit_time || '',
       entry_time: perm.entry_time || '',
       time_compensation_agreement: perm.time_compensation_agreement || '',
@@ -188,10 +191,14 @@ export default function PermissionForm() {
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'Fecha no válida';
-    const dateToParse = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
-    const date = new Date(dateToParse);
-    if (isNaN(date.getTime())) return 'Fecha no válida';
+    const cleanDate = dateStr.split('T')[0];
+    const parts = cleanDate.split('-').map(Number);
+    if (parts.length !== 3) return cleanDate;
+    const [year, month, day] = parts;
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return cleanDate;
 
+    // Use noon (12:00) in local time so NO timezone offset can shift the calendar day
+    const date = new Date(year, month - 1, day, 12, 0, 0);
     return date.toLocaleDateString('es-MX', {
       weekday: 'long',
       day: 'numeric',
@@ -211,17 +218,16 @@ export default function PermissionForm() {
 
   const getFilteredPermissions = (active: boolean) => {
     const weekStart = getPayrollWeekStart();
-    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const y = weekStart.getFullYear();
+    const m = String(weekStart.getMonth() + 1).padStart(2, '0');
+    const d = String(weekStart.getDate()).padStart(2, '0');
+    const weekStartStr = `${y}-${m}-${d}`;
 
     return permissions.filter(perm => {
-      let dateStr = '';
-      if (typeof perm.permission_date === 'string') {
-        dateStr = perm.permission_date.split('T')[0];
-      } else {
-        try {
-          dateStr = new Date(perm.permission_date).toISOString().split('T')[0];
-        } catch (e) { return false; }
-      }
+      if (!perm.permission_date) return false;
+      const dateStr = typeof perm.permission_date === 'string'
+        ? perm.permission_date.split('T')[0]
+        : '';
 
       if (active) {
         return dateStr >= weekStartStr;

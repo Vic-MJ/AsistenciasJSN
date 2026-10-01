@@ -55,10 +55,12 @@ export async function generateAttendanceReport(
   const employeeMap = new Map(employees.map(emp => [normalizeText(emp.full_name), emp]));
   const uniqueEmployees = Array.from(new Set(attendanceRecords.map(r => r.empleado))).sort((a, b) => a.localeCompare(b));
 
-  const fecha_inicio = new Date(startDateInput + 'T00:00:00');
+  const [sYear, sMonth, sDay] = startDateInput.split('-').map(Number);
+  const fecha_inicio = new Date(sYear, sMonth - 1, sDay, 12, 0, 0);
   fecha_inicio.setDate(fecha_inicio.getDate() - (fecha_inicio.getDay() - 5 + 7) % 7);
 
-  const fecha_fin = new Date(endDateInput + 'T23:59:59');
+  const [eYear, eMonth, eDay] = endDateInput.split('-').map(Number);
+  const fecha_fin = new Date(eYear, eMonth - 1, eDay, 12, 0, 0);
   fecha_fin.setDate(fecha_fin.getDate() + (4 - fecha_fin.getDay() + 7) % 7);
 
   for (let empIndex = 0; empIndex < uniqueEmployees.length; empIndex++) {
@@ -173,32 +175,22 @@ export async function generateAttendanceReport(
 
       const perm = employeeData ? permissions.find(p => {
         if (p.employee_id !== employeeData.id) return false;
-        const pDate = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : new Date(p.permission_date).toISOString().split('T')[0];
+        const pDate = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : '';
         return pDate === dateKey;
       }) : null;
       const matchingObs = globalObservations.filter(o => o.date === dateKey);
 
-      if (perm) {
-        if (perm.time_compensation_agreement && perm.time_compensation_agreement.trim()) {
-          const pagoStr = perm.is_compensation_paid ? 'PAGADO' : 'NO PAGADO';
-          observacion = `PERMISO (ACUERDO: ${perm.time_compensation_agreement.trim()} | ${pagoStr})`;
-        } else {
-          observacion = 'PERMISO';
-        }
-      }
+      if (perm) observacion = 'PERMISO';
       else if (matchingObs.length > 0) observacion = matchingObs.map(o => o.text.toUpperCase()).join(' / ');
       else if (dayRecs.length === 0 && current.getDay() >= 1 && current.getDay() <= 5) { observacion = 'FALTA'; faltas++; }
 
       const dataRow = worksheet.getRow(currentRowIndex); 
       dataRow.values = [formatDate(current).toUpperCase(), formatTime(entrada), formatTime(sD), formatTime(eD), formatTime(sC), formatTime(eC), formatTime(salida), observacion];
-      if (observacion.length > 25) {
-        dataRow.height = 28;
-      }
       for (let col = 1; col <= 8; col++) {
         const c = dataRow.getCell(col);
         c.border = thinBorder;
         c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-        if (observacion.startsWith('PERMISO') && col === 8) c.fill = permisoFill;
+        if (observacion === 'PERMISO' && col === 8) c.fill = permisoFill;
         else if (observacion === 'FALTA') c.fill = faltaFill;
         else if (observacion.includes('RETARDO INGRESO') && col === 2) c.fill = highlightFill;
         
@@ -230,7 +222,7 @@ export async function generateAttendanceReport(
     // Sección de Acuerdos de Reposición de Tiempo si existen permisos con acuerdos en el periodo
     const employeePermsWithAgreement = employeeData ? permissions.filter(p => {
       if (p.employee_id !== employeeData.id) return false;
-      const pDate = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : new Date(p.permission_date).toISOString().split('T')[0];
+      const pDate = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : '';
       const startStr = `${fecha_inicio.getFullYear()}-${(fecha_inicio.getMonth() + 1).toString().padStart(2, '0')}-${fecha_inicio.getDate().toString().padStart(2, '0')}`;
       const endStr = `${fecha_fin.getFullYear()}-${(fecha_fin.getMonth() + 1).toString().padStart(2, '0')}-${fecha_fin.getDate().toString().padStart(2, '0')}`;
       return pDate >= startStr && pDate <= endStr && p.time_compensation_agreement && p.time_compensation_agreement.trim();
@@ -239,15 +231,6 @@ export async function generateAttendanceReport(
     let agreementRowIndex = currentRowIndex + 2;
     if (employeePermsWithAgreement.length > 0) {
       agreementRowIndex++;
-      const titleRow = worksheet.getRow(agreementRowIndex);
-      worksheet.mergeCells(`A${agreementRowIndex}:H${agreementRowIndex}`);
-      titleRow.getCell(1).value = 'DETALLE DE ACUERDOS DE REPOSICIÓN DE TIEMPO';
-      titleRow.getCell(1).font = { bold: true, size: 9, color: { argb: 'FF1E293B' } };
-      titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-      titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-      titleRow.height = 20;
-      agreementRowIndex++;
-
       const headerRow = worksheet.getRow(agreementRowIndex);
       worksheet.mergeCells(`A${agreementRowIndex}:B${agreementRowIndex}`);
       worksheet.mergeCells(`C${agreementRowIndex}:F${agreementRowIndex}`);
@@ -272,7 +255,7 @@ export async function generateAttendanceReport(
         worksheet.mergeCells(`C${agreementRowIndex}:F${agreementRowIndex}`);
         worksheet.mergeCells(`G${agreementRowIndex}:H${agreementRowIndex}`);
 
-        const pDateFormatted = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : new Date(p.permission_date).toISOString().split('T')[0];
+        const pDateFormatted = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : '';
         agRow.getCell(1).value = pDateFormatted;
         agRow.getCell(1).font = { bold: true, size: 9 };
         agRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
