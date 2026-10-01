@@ -95,7 +95,9 @@ export async function generateIncidentsReport(
                 const first = entries[0], m = first.getHours() * 3600 + first.getMinutes() * 60;
                 const limit = timeToSeconds(scheduleInfo.entry_time) + (scheduleInfo.tolerance_minutes * 60);
                 if (m > limit) {
-                    const justification = perm ? `Permiso: ${perm.permission_type}` : (dayGlobalObs || '');
+                    const justification = perm 
+                        ? `Permiso: ${perm.permission_type}${perm.time_compensation_agreement ? ` | Reposición: ${perm.time_compensation_agreement} (${perm.is_compensation_paid ? 'PAGADO' : 'NO PAGADO'})` : ''}` 
+                        : (dayGlobalObs || '');
                     if (!justification) {
                         countRetardos++;
                         const diff = m - limit, h = Math.floor(diff / 3600), min = Math.floor((diff % 3600) / 60);

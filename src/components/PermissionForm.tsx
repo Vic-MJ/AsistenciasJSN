@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Edit2, Calendar, AlertCircle, History, Filter, Plus } from 'lucide-react';
+import { Trash2, Edit2, Calendar, AlertCircle, History, Filter, Plus, Clock, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, Employee, Permission } from '../lib/api';
 import { toast } from 'sonner';
@@ -32,7 +32,9 @@ export default function PermissionForm() {
     reason_other: '',
     permission_date: '',
     exit_time: '',
-    entry_time: ''
+    entry_time: '',
+    time_compensation_agreement: '',
+    is_compensation_paid: false
   });
 
   useEffect(() => {
@@ -94,7 +96,9 @@ export default function PermissionForm() {
       reason_other: form.reason_other,
       permission_date: form.permission_date,
       exit_time: form.exit_time || null,
-      entry_time: form.entry_time || null
+      entry_time: form.entry_time || null,
+      time_compensation_agreement: form.time_compensation_agreement.trim(),
+      is_compensation_paid: form.is_compensation_paid
     };
 
     try {
@@ -121,7 +125,9 @@ export default function PermissionForm() {
       reason_other: '',
       permission_date: '',
       exit_time: '',
-      entry_time: ''
+      entry_time: '',
+      time_compensation_agreement: '',
+      is_compensation_paid: false
     });
     setEditingId(null);
   };
@@ -134,10 +140,24 @@ export default function PermissionForm() {
       reason_other: perm.reason_other || '',
       permission_date: perm.permission_date,
       exit_time: perm.exit_time || '',
-      entry_time: perm.entry_time || ''
+      entry_time: perm.entry_time || '',
+      time_compensation_agreement: perm.time_compensation_agreement || '',
+      is_compensation_paid: Boolean(perm.is_compensation_paid)
     });
     setEditingId(perm.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleToggleCompensationPaid = async (perm: Permission) => {
+    const newStatus = !perm.is_compensation_paid;
+    try {
+      await api.updatePermission(perm.id, { is_compensation_paid: newStatus });
+      toast.success(newStatus ? 'Marcado como tiempo repuesto / pagado' : 'Marcado como pendiente de reposición');
+      loadPermissions();
+    } catch (error) {
+      toast.error('Error al actualizar estado del acuerdo');
+      console.error(error);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -368,6 +388,53 @@ export default function PermissionForm() {
                     )}
                   </div>
                 </div>
+
+                {/* Sección de Acuerdo de Reposición de Tiempo */}
+                <div className="p-6 bg-slate-50/80 rounded-[2.5rem] border border-slate-100 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
+                      Acuerdo de Reposición de Tiempo
+                    </label>
+                    <span className="text-[9px] font-bold text-slate-400 bg-white px-2.5 py-1 rounded-full border border-slate-100">
+                      Opcional
+                    </span>
+                  </div>
+
+                  <textarea
+                    rows={2}
+                    value={form.time_compensation_agreement}
+                    onChange={(e) => setForm({ ...form, time_compensation_agreement: e.target.value })}
+                    placeholder="Ej: Se quedara a pagar 30 mins los dias 1,2,3,4 y 5 de oct"
+                    className="w-full bg-white border border-slate-200/80 rounded-2xl p-4 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all resize-none shadow-sm"
+                  />
+
+                  {/* Casilla para marcar si ya fue pagado o no */}
+                  <label className="flex items-start gap-3 p-4 bg-white rounded-2xl border border-slate-200/70 hover:border-brand-500/30 transition-all cursor-pointer group select-none shadow-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.is_compensation_paid}
+                      onChange={(e) => setForm({ ...form, is_compensation_paid: e.target.checked })}
+                      className="mt-0.5 h-4 w-4 rounded text-brand-600 border-slate-300 focus:ring-brand-500 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 group-hover:text-brand-600 transition-colors">
+                          ¿Tiempo ya pagado / repuesto?
+                        </span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          form.is_compensation_paid
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {form.is_compensation_paid ? 'Pagado' : 'Pendiente'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-medium mt-1">
+                        Marcar esta casilla si el colaborador ya cubrió el tiempo acordado.
+                      </p>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div className="flex gap-6 pt-6 border-t border-slate-50">
@@ -519,6 +586,60 @@ export default function PermissionForm() {
                             </button>
                           </div>
                         </div>
+
+                        {perm.time_compensation_agreement && (
+                          <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/70 -mx-8 -mb-8 p-6 px-8 rounded-b-[3rem]">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div className={`p-2.5 rounded-xl mt-0.5 shrink-0 ${
+                                perm.is_compensation_paid 
+                                  ? 'bg-emerald-100 text-emerald-700' 
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                <Clock size={18} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                    Acuerdo de Reposición de Tiempo
+                                  </span>
+                                  <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
+                                    perm.is_compensation_paid
+                                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  }`}>
+                                    {perm.is_compensation_paid ? 'Pagado' : 'Pendiente'}
+                                  </span>
+                                </div>
+                                <p className="text-xs font-bold text-slate-800 mt-1 break-words">
+                                  {perm.time_compensation_agreement}
+                                </p>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCompensationPaid(perm)}
+                              title={perm.is_compensation_paid ? 'Hacer clic para marcar como pendiente' : 'Hacer clic para marcar como pagado'}
+                              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all self-start md:self-center shrink-0 border shadow-sm ${
+                                perm.is_compensation_paid
+                                  ? 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                                  : 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600 shadow-amber-500/20'
+                              }`}
+                            >
+                              {perm.is_compensation_paid ? (
+                                <>
+                                  <CheckCircle2 size={14} className="text-emerald-600" />
+                                  <span>¿Revertir a Pendiente?</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 size={14} />
+                                  <span>Marcar como Pagado</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </motion.div>
                     ))}
                   </div>

@@ -23,3 +23,8 @@ CREATE TABLE IF NOT EXISTS attendance_logs (
 -- ÍNDICES PARA MEJORAR RENDIMIENTO
 CREATE INDEX IF NOT EXISTS idx_attendance_logs_check_in ON attendance_logs(check_in);
 CREATE INDEX IF NOT EXISTS idx_attendance_logs_odoo_id ON attendance_logs(odoo_id);
+
+-- AGREGAR CAMPOS DE ACUERDO DE REPOSICIÓN DE TIEMPO A PERMISOS
+ALTER TABLE permissions ADD COLUMN IF NOT EXISTS time_compensation_agreement TEXT DEFAULT '';
+ALTER TABLE permissions ADD COLUMN IF NOT EXISTS is_compensation_paid BOOLEAN DEFAULT false;
+

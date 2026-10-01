@@ -50,7 +50,7 @@ function App() {
             const birthColabs = emps
                 .filter(emp => !!emp.birthday)
                 .map(emp => {
-                    const cleanBday = emp.birthday.substring(0, 10);
+                    const cleanBday = emp.birthday!.substring(0, 10);
                     const parts = cleanBday.split('-');
                     const bMonth = parts[1];
                     const bDay = Number(parts[2]);

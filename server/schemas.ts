@@ -46,10 +46,12 @@ export const permissionSchema = z.object({
     employee_id: z.string().uuid('ID de empleado inválido'),
     permission_type: z.enum(['POR_HORAS', 'SALIDA_ANTICIPADA', 'ENTRADA_TARDE']),
     reason: z.enum(['CITA_MEDICA', 'EMERGENCIA_FAMILIAR', 'TRAMITE_DOCUMENTOS', 'CITA_ESCOLAR', 'MOTIVO_PERSONAL', 'OTRO']),
-    reason_other: z.string().optional().default(''),
+    reason_other: z.string().optional(),
     permission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida (YYYY-MM-DD)'),
     exit_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Hora de salida inválida').optional().nullable(),
     entry_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Hora de entrada inválida').optional().nullable(),
+    time_compensation_agreement: z.string().optional(),
+    is_compensation_paid: z.boolean().optional(),
 });
 
 export const settingsSchema = z.object({

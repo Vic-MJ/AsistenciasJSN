@@ -60,7 +60,7 @@ export default function EmployeeForms({ onSuccess }: EmployeeFormsProps) {
           department: row[3] ? String(row[3]).trim() : '',
           area_name: row[3] ? String(row[3]).trim() : undefined,
           position: row[4] ? String(row[4]).trim() : undefined,
-          payment_period: (row[5] && String(row[5]).toLowerCase() === 'quincenal') ? 'quincenal' : 'semanal',
+          payment_period: ((row[5] && String(row[5]).toLowerCase() === 'quincenal') ? 'quincenal' : 'semanal') as 'quincenal' | 'semanal',
           schedule_name: row[6] ? String(row[6]).trim() : undefined,
           entry_time: row[7] ? String(row[7]).trim() : undefined,
           exit_time: row[8] ? String(row[8]).trim() : undefined,

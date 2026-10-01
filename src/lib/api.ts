@@ -57,6 +57,8 @@ export interface Permission {
     permission_date: string;
     exit_time: string | null;
     entry_time: string | null;
+    time_compensation_agreement?: string | null;
+    is_compensation_paid?: boolean;
     created_at: string;
 }
 
@@ -146,7 +148,7 @@ export const api = {
         return res.json();
     },
 
-    updatePermission: async (id: string, permission: Omit<Permission, 'id' | 'created_at'>): Promise<Permission> => {
+    updatePermission: async (id: string, permission: Partial<Omit<Permission, 'id' | 'created_at'>>): Promise<Permission> => {
         const res = await fetch(`${API_URL}/permissions/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },

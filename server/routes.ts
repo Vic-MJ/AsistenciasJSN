@@ -185,10 +185,10 @@ router.get('/permissions', asyncHandler(async (req: Request, res: Response) => {
 
 router.post('/permissions', asyncHandler(async (req: Request, res: Response) => {
     const validated = permissionSchema.parse(req.body);
-    const { employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time } = validated;
+    const { employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement, is_compensation_paid } = validated;
     const { rows } = await pool.query(
-        'INSERT INTO permissions (employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-        [employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time]
+        'INSERT INTO permissions (employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement, is_compensation_paid) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+        [employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement || '', Boolean(is_compensation_paid)]
     );
     res.json(rows[0]);
 }));

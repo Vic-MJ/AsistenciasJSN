@@ -21,6 +21,8 @@ pool.query(`
   ALTER TABLE users ADD COLUMN IF NOT EXISTS email text DEFAULT '';
   ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password boolean DEFAULT false;
   ALTER TABLE employees ADD COLUMN IF NOT EXISTS no_empleado text DEFAULT '';
+  ALTER TABLE permissions ADD COLUMN IF NOT EXISTS time_compensation_agreement text DEFAULT '';
+  ALTER TABLE permissions ADD COLUMN IF NOT EXISTS is_compensation_paid boolean DEFAULT false;
 `).then(() => {
   console.log('Database user schema migrations applied successfully.');
 }).catch((err) => {

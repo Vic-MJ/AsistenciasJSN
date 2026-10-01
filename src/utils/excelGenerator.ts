@@ -88,7 +88,7 @@ export async function generateAttendanceReport(
         header: 0.3, footer: 0.3
       }
     };
-    worksheet.columns = [{ width: 17 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 12 }, { width: 22 }];
+    worksheet.columns = [{ width: 17 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 12 }, { width: 36 }];
 
     if (logoDataUrl) {
       const imageId = workbook.addImage({ base64: logoDataUrl, extension: 'png' });
@@ -126,7 +126,7 @@ export async function generateAttendanceReport(
     row7.values = ['', '', 'SALIDA', 'ENTRADA', 'SALIDA', 'ENTRADA', '', ''];
     [row6, row7].forEach(row => { for (let col = 1; col <= 8; col++) { const cell = row.getCell(col); cell.font = { bold: true }; cell.fill = headerFill; cell.border = thinBorder; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; } });
 
-    let retardosIngreso = 0, minutosRetardoIngreso = 0, retardosComida = 0, minutosRetardoComida = 0, faltas = 0, minutosExtra = 0, currentRowIndex = 8;
+    let retardosIngreso = 0, minutosRetardoIngreso = 0, faltas = 0, minutosExtra = 0, currentRowIndex = 8;
     const current = new Date(fecha_inicio);
     while (current <= fecha_fin) {
       const dateKey = `${current.getFullYear()}-${(current.getMonth() + 1).toString().padStart(2, '0')}-${current.getDate().toString().padStart(2, '0')}`;
@@ -167,34 +167,6 @@ export async function generateAttendanceReport(
           }
         }
         if (entrada) { const m = timeToMinutes(formatTime(entrada)), l = timeToMinutes(scheduleInfo.entry_time) + scheduleInfo.tolerance_minutes; if (m > l) { observacion = 'RETARDO INGRESO'; retardosIngreso++; minutosRetardoIngreso += m - l; } }
-        
-        const hasLongSchedule = (scheduleInfo.entry_time.startsWith('08:00') || scheduleInfo.entry_time.startsWith('07:55')) && scheduleInfo.exit_time.startsWith('18:00');
-        
-        if (sD && eD) {
-          const minSD = timeToMinutes(formatTime(sD));
-          const minED = timeToMinutes(formatTime(eD));
-          const mealTime = minED - minSD;
-          const allowed = hasLongSchedule ? 20 : 0;
-          /*if (allowed > 0 && mealTime > allowed + 3) {
-            isBreakfastLate = true;
-            observacion = observacion ? observacion + ' / RETARDO COMIDA' : 'RETARDO COMIDA';
-            retardosComida++;
-            minutosRetardoComida += mealTime - (allowed + 3);
-          }*/
-        }
-        
-        if (sC && eC) {
-          const minSC = timeToMinutes(formatTime(sC));
-          const minEC = timeToMinutes(formatTime(eC));
-          const mealTime = minEC - minSC;
-          const allowed = hasLongSchedule ? 40 : 20;
-          /*if (mealTime > allowed + 3) {
-            isLunchLate = true;
-            observacion = observacion && !observacion.includes('RETARDO COMIDA') ? observacion + ' / RETARDO COMIDA' : (observacion || 'RETARDO COMIDA');
-            retardosComida++;
-            minutosRetardoComida += mealTime - (allowed + 3);
-          }*/
-        }
 
         if (salida && entrada) { const sM = timeToMinutes(formatTime(salida)), eM = timeToMinutes(formatTime(entrada)); let ex = current.getDay() === 6 || current.getDay() === 0 ? sM - eM : sM - timeToMinutes(scheduleInfo.horaSalidaNormal); if (ex > 0) minutosExtra += ex; }
       }
@@ -206,16 +178,27 @@ export async function generateAttendanceReport(
       }) : null;
       const matchingObs = globalObservations.filter(o => o.date === dateKey);
 
-      if (perm) observacion = 'PERMISO';
+      if (perm) {
+        if (perm.time_compensation_agreement && perm.time_compensation_agreement.trim()) {
+          const pagoStr = perm.is_compensation_paid ? 'PAGADO' : 'NO PAGADO';
+          observacion = `PERMISO (ACUERDO: ${perm.time_compensation_agreement.trim()} | ${pagoStr})`;
+        } else {
+          observacion = 'PERMISO';
+        }
+      }
       else if (matchingObs.length > 0) observacion = matchingObs.map(o => o.text.toUpperCase()).join(' / ');
       else if (dayRecs.length === 0 && current.getDay() >= 1 && current.getDay() <= 5) { observacion = 'FALTA'; faltas++; }
 
-      const dataRow = worksheet.getRow(currentRowIndex); dataRow.values = [formatDate(current).toUpperCase(), formatTime(entrada), formatTime(sD), formatTime(eD), formatTime(sC), formatTime(eC), formatTime(salida), observacion];
+      const dataRow = worksheet.getRow(currentRowIndex); 
+      dataRow.values = [formatDate(current).toUpperCase(), formatTime(entrada), formatTime(sD), formatTime(eD), formatTime(sC), formatTime(eC), formatTime(salida), observacion];
+      if (observacion.length > 25) {
+        dataRow.height = 28;
+      }
       for (let col = 1; col <= 8; col++) {
         const c = dataRow.getCell(col);
         c.border = thinBorder;
         c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-        if (observacion === 'PERMISO' && col === 8) c.fill = permisoFill;
+        if (observacion.startsWith('PERMISO') && col === 8) c.fill = permisoFill;
         else if (observacion === 'FALTA') c.fill = faltaFill;
         else if (observacion.includes('RETARDO INGRESO') && col === 2) c.fill = highlightFill;
         
@@ -230,12 +213,7 @@ export async function generateAttendanceReport(
     const resRow1 = worksheet.getRow(currentRowIndex + 1);
     resRow1.values = ['RET. INGRESO', retardosIngreso, `${minutosRetardoIngreso} min`, 'FALTAS', faltas, 'TIEMPO EXTRA', '', minutosExtra > 15 ? `${Math.floor(minutosExtra / 60)}:${(minutosExtra % 60).toString().padStart(2, '0')} hrs` : '0:00 hrs'];
     
-    /*const resRow2 = worksheet.getRow(currentRowIndex + 2);
-    resRow2.values = ['RET. COMIDA', retardosComida, `${minutosRetardoComida} min`, '', '', '', '', ''];*/
-
     worksheet.mergeCells(`F${currentRowIndex + 1}:G${currentRowIndex + 1}`);
-    /*worksheet.mergeCells(`D${currentRowIndex + 2}:E${currentRowIndex + 2}`);
-    worksheet.mergeCells(`F${currentRowIndex + 2}:H${currentRowIndex + 2}`);*/
 
     for (let col = 1; col <= 8; col++) { 
       const c1 = resRow1.getCell(col); 
@@ -247,19 +225,77 @@ export async function generateAttendanceReport(
       } else {
         c1.font = { bold: true };
       }
-      
-      /*const c2 = resRow2.getCell(col); 
-      c2.border = thinBorder; 
-      c2.alignment = { horizontal: 'center', vertical: 'middle' }; 
-      if (col === 1) {
-        c2.font = { bold: true, color: { argb: 'FF333333' } };
-        c2.fill = summaryFill;
-      } else {
-        c2.font = { bold: true };
-      }*/
+    }
+
+    // Sección de Acuerdos de Reposición de Tiempo si existen permisos con acuerdos en el periodo
+    const employeePermsWithAgreement = employeeData ? permissions.filter(p => {
+      if (p.employee_id !== employeeData.id) return false;
+      const pDate = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : new Date(p.permission_date).toISOString().split('T')[0];
+      const startStr = `${fecha_inicio.getFullYear()}-${(fecha_inicio.getMonth() + 1).toString().padStart(2, '0')}-${fecha_inicio.getDate().toString().padStart(2, '0')}`;
+      const endStr = `${fecha_fin.getFullYear()}-${(fecha_fin.getMonth() + 1).toString().padStart(2, '0')}-${fecha_fin.getDate().toString().padStart(2, '0')}`;
+      return pDate >= startStr && pDate <= endStr && p.time_compensation_agreement && p.time_compensation_agreement.trim();
+    }) : [];
+
+    let agreementRowIndex = currentRowIndex + 2;
+    if (employeePermsWithAgreement.length > 0) {
+      agreementRowIndex++;
+      const titleRow = worksheet.getRow(agreementRowIndex);
+      worksheet.mergeCells(`A${agreementRowIndex}:H${agreementRowIndex}`);
+      titleRow.getCell(1).value = 'DETALLE DE ACUERDOS DE REPOSICIÓN DE TIEMPO';
+      titleRow.getCell(1).font = { bold: true, size: 9, color: { argb: 'FF1E293B' } };
+      titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+      titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      titleRow.height = 20;
+      agreementRowIndex++;
+
+      const headerRow = worksheet.getRow(agreementRowIndex);
+      worksheet.mergeCells(`A${agreementRowIndex}:B${agreementRowIndex}`);
+      worksheet.mergeCells(`C${agreementRowIndex}:F${agreementRowIndex}`);
+      worksheet.mergeCells(`G${agreementRowIndex}:H${agreementRowIndex}`);
+      headerRow.getCell(1).value = 'FECHA';
+      headerRow.getCell(3).value = 'ACUERDO DE REPOSICIÓN';
+      headerRow.getCell(7).value = 'ESTADO PAGO';
+      [1, 3, 7].forEach(cNum => {
+        const c = headerRow.getCell(cNum);
+        c.font = { bold: true, size: 9 };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      for (let col = 1; col <= 8; col++) {
+        headerRow.getCell(col).border = thinBorder;
+      }
+      agreementRowIndex++;
+
+      employeePermsWithAgreement.forEach((p) => {
+        const agRow = worksheet.getRow(agreementRowIndex);
+        worksheet.mergeCells(`A${agreementRowIndex}:B${agreementRowIndex}`);
+        worksheet.mergeCells(`C${agreementRowIndex}:F${agreementRowIndex}`);
+        worksheet.mergeCells(`G${agreementRowIndex}:H${agreementRowIndex}`);
+
+        const pDateFormatted = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : new Date(p.permission_date).toISOString().split('T')[0];
+        agRow.getCell(1).value = pDateFormatted;
+        agRow.getCell(1).font = { bold: true, size: 9 };
+        agRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+        agRow.getCell(3).value = p.time_compensation_agreement;
+        agRow.getCell(3).font = { size: 9 };
+        agRow.getCell(3).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+
+        const isPaid = Boolean(p.is_compensation_paid);
+        agRow.getCell(7).value = isPaid ? 'PAGADO' : 'NO PAGADO / PENDIENTE';
+        agRow.getCell(7).font = { bold: true, size: 9, color: { argb: isPaid ? 'FF166534' : 'FF991B1B' } };
+        agRow.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isPaid ? 'FFDCFCE7' : 'FFFEE2E2' } };
+        agRow.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
+
+        for (let col = 1; col <= 8; col++) {
+          agRow.getCell(col).border = thinBorder;
+        }
+        agRow.height = 22;
+        agreementRowIndex++;
+      });
     }
     
-    const fIdx = currentRowIndex + 4;
+    const fIdx = Math.max(currentRowIndex + 4, agreementRowIndex + 2);
     const nRow = worksheet.getRow(fIdx + 1);
     worksheet.mergeCells(`B${fIdx + 1}:G${fIdx + 1}`);
     for (let col = 2; col <= 7; col++) {
