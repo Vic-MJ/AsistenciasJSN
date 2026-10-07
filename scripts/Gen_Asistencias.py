@@ -309,7 +309,7 @@ for empleado in empleados:
   fila_resumen = idx + 2
   ws.append([])
   # Conversión de minutos a HH:MM
-  if minutos_extra > 60:
+  if minutos_extra >= 40:
     horas = minutos_extra // 60
     minutos = minutos_extra % 60
     tiempo_extra = f"{horas}:{minutos:02d}"

@@ -213,7 +213,7 @@ export async function generateAttendanceReport(
     
     const resRow1 = worksheet.getRow(currentRowIndex + 1);
     resRow1.height = 22;
-    resRow1.values = ['RET. INGRESO', retardosIngreso, `${minutosRetardoIngreso} min`, 'FALTAS', faltas, 'TIEMPO EXTRA', '', minutosExtra > 15 ? `${Math.floor(minutosExtra / 60)}:${(minutosExtra % 60).toString().padStart(2, '0')} hrs` : '0:00 hrs'];
+    resRow1.values = ['RET. INGRESO', retardosIngreso, `${minutosRetardoIngreso} min`, 'FALTAS', faltas, 'TIEMPO EXTRA', '', minutosExtra >= 40 ? `${Math.floor(minutosExtra / 60)}:${(minutosExtra % 60).toString().padStart(2, '0')} hrs` : '0:00 hrs'];
     
     worksheet.mergeCells(`F${currentRowIndex + 1}:G${currentRowIndex + 1}`);
 
