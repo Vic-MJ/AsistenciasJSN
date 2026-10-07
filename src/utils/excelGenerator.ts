@@ -41,6 +41,8 @@ const formatTime = (date: Date | null): string => {
 
 const formatDate = (date: Date): string => `${DIAS_SEMANA[date.getDay()].charAt(0).toUpperCase() + DIAS_SEMANA[date.getDay()].slice(1)}, ${date.getDate()}`;
 
+const px = (pixels: number): number => pixels * 0.75;
+
 export async function generateAttendanceReport(
   attendanceRecords: AttendanceRecord[],
   employees: Employee[],
@@ -106,31 +108,31 @@ export async function generateAttendanceReport(
 
     worksheet.mergeCells('A1:H1');
     const titleCell = worksheet.getCell('A1'); titleCell.value = 'REGISTRO DE ENTRADAS Y SALIDAS'; titleCell.font = { bold: true, size: 14 }; titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    worksheet.getRow(1).height = 32;
+    worksheet.getRow(1).height = px(32);
 
     const row2 = worksheet.getRow(2);
-    row2.height = 20;
+    row2.height = px(20);
     row2.getCell(1).value = 'NO. NÓMINA'; row2.getCell(1).font = { bold: true }; row2.getCell(1).fill = headerFill; row2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     row2.getCell(2).value = employeeNumber; row2.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
     row2.getCell(3).value = 'NOMBRE'; row2.getCell(3).font = { bold: true }; row2.getCell(3).fill = headerFill; row2.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('D2:G2'); row2.getCell(4).value = empleadoNombre.toUpperCase(); row2.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
 
     const row3 = worksheet.getRow(3);
-    row3.height = 20;
+    row3.height = px(20);
     worksheet.mergeCells('A3:B3'); row3.getCell(1).value = 'DEL'; row3.getCell(1).font = { bold: true }; row3.getCell(1).fill = headerFill; row3.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('C3:D3'); row3.getCell(3).value = fecha_inicio.toLocaleDateString('es-MX').toUpperCase(); row3.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('E3:F3'); row3.getCell(5).value = 'AL'; row3.getCell(5).font = { bold: true }; row3.getCell(5).fill = headerFill; row3.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('G3:H3'); row3.getCell(7).value = fecha_fin.toLocaleDateString('es-MX').toUpperCase(); row3.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
 
     const row4 = worksheet.getRow(4);
-    row4.height = 20;
+    row4.height = px(20);
     worksheet.mergeCells('A4:D4'); row4.getCell(1).value = 'HORARIO'; row4.getCell(1).font = { bold: true }; row4.getCell(1).fill = headerFill; row4.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('E4:H4'); row4.getCell(5).value = scheduleInfo.horario.toUpperCase(); row4.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
 
-    worksheet.getRow(5).height = 7;
+    worksheet.getRow(5).height = px(7);
     const row6 = worksheet.getRow(6), row7 = worksheet.getRow(7);
-    row6.height = 15;
-    row7.height = 15;
+    row6.height = px(15);
+    row7.height = px(15);
     row6.values = ['DIA', 'ENTRADA', 'DESAYUNO', '', 'COMIDA', '', 'SALIDA', 'OBSERVACIONES']; worksheet.mergeCells('C6:D6'); worksheet.mergeCells('E6:F6');
     row7.values = ['', '', 'SALIDA', 'ENTRADA', 'SALIDA', 'ENTRADA', '', ''];
     [row6, row7].forEach(row => { for (let col = 1; col <= 8; col++) { const cell = row.getCell(col); cell.font = { bold: true }; cell.fill = headerFill; cell.border = thinBorder; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; } });
@@ -193,7 +195,7 @@ export async function generateAttendanceReport(
 
       const dataRow = worksheet.getRow(currentRowIndex); 
       dataRow.values = [formatDate(current).toUpperCase(), formatTime(entrada), formatTime(sD), formatTime(eD), formatTime(sC), formatTime(eC), formatTime(salida), observacion];
-      dataRow.height = 20;
+      dataRow.height = px(20);
       for (let col = 1; col <= 8; col++) {
         const c = dataRow.getCell(col);
         c.border = thinBorder;
@@ -208,11 +210,11 @@ export async function generateAttendanceReport(
       currentRowIndex++; current.setDate(current.getDate() + 1);
     }
     
-    worksheet.getRow(currentRowIndex).height = 7;
+    worksheet.getRow(currentRowIndex).height = px(7);
     const summaryFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF2F2F2' } };
     
     const resRow1 = worksheet.getRow(currentRowIndex + 1);
-    resRow1.height = 20;
+    resRow1.height = px(20);
     resRow1.values = ['RET. INGRESO', retardosIngreso, `${minutosRetardoIngreso} min`, 'FALTAS', faltas, 'TIEMPO EXTRA', '', minutosExtra >= 40 ? `${Math.floor(minutosExtra / 60)}:${(minutosExtra % 60).toString().padStart(2, '0')} hrs` : '0:00 hrs'];
     
     worksheet.mergeCells(`F${currentRowIndex + 1}:G${currentRowIndex + 1}`);
@@ -239,14 +241,14 @@ export async function generateAttendanceReport(
     }) : [];
 
     let agreementRowIndex = currentRowIndex + 2;
-    worksheet.getRow(agreementRowIndex).height = 7;
+    worksheet.getRow(agreementRowIndex).height = px(7);
 
     let blankStartRow = agreementRowIndex + 1;
 
     if (employeePermsWithAgreement.length > 0) {
       agreementRowIndex++;
       const headerRow = worksheet.getRow(agreementRowIndex);
-      headerRow.height = 20;
+      headerRow.height = px(20);
       worksheet.mergeCells(`A${agreementRowIndex}:B${agreementRowIndex}`);
       worksheet.mergeCells(`C${agreementRowIndex}:F${agreementRowIndex}`);
       worksheet.mergeCells(`G${agreementRowIndex}:H${agreementRowIndex}`);
@@ -288,7 +290,7 @@ export async function generateAttendanceReport(
         for (let col = 1; col <= 8; col++) {
           agRow.getCell(col).border = thinBorder;
         }
-        agRow.height = 20;
+        agRow.height = px(20);
         agreementRowIndex++;
       });
       blankStartRow = agreementRowIndex;
@@ -296,12 +298,12 @@ export async function generateAttendanceReport(
     
     // Espacio para la firma del empleado: exactamente 4 filas en blanco de 20 px
     for (let r = blankStartRow; r < blankStartRow + 4; r++) {
-      worksheet.getRow(r).height = 20;
+      worksheet.getRow(r).height = px(20);
     }
 
     const signatureRowIndex = blankStartRow + 4;
     const nRow = worksheet.getRow(signatureRowIndex);
-    nRow.height = 20;
+    nRow.height = px(20);
     worksheet.mergeCells(`B${signatureRowIndex}:G${signatureRowIndex}`);
     for (let col = 2; col <= 7; col++) {
       nRow.getCell(col).border = { top: { style: 'medium' } };
@@ -311,7 +313,7 @@ export async function generateAttendanceReport(
     nRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
 
     const dRow = worksheet.getRow(signatureRowIndex + 1);
-    dRow.height = 20;
+    dRow.height = px(20);
     worksheet.mergeCells(`B${signatureRowIndex + 1}:G${signatureRowIndex + 1}`);
     dRow.getCell(2).value = (employeeData?.department || '').toUpperCase();
     dRow.getCell(2).font = { italic: true, size: 10 };
