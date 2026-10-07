@@ -106,7 +106,7 @@ export async function generateAttendanceReport(
 
     worksheet.mergeCells('A1:H1');
     const titleCell = worksheet.getCell('A1'); titleCell.value = 'REGISTRO DE ENTRADAS Y SALIDAS'; titleCell.font = { bold: true, size: 14 }; titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    worksheet.getRow(1).height = 24;
+    worksheet.getRow(1).height = 32;
 
     const row2 = worksheet.getRow(2);
     row2.height = 20;
@@ -127,10 +127,10 @@ export async function generateAttendanceReport(
     worksheet.mergeCells('A4:D4'); row4.getCell(1).value = 'HORARIO'; row4.getCell(1).font = { bold: true }; row4.getCell(1).fill = headerFill; row4.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('E4:H4'); row4.getCell(5).value = scheduleInfo.horario.toUpperCase(); row4.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
 
-    worksheet.getRow(5).height = 10;
+    worksheet.getRow(5).height = 7;
     const row6 = worksheet.getRow(6), row7 = worksheet.getRow(7);
-    row6.height = 18;
-    row7.height = 18;
+    row6.height = 15;
+    row7.height = 15;
     row6.values = ['DIA', 'ENTRADA', 'DESAYUNO', '', 'COMIDA', '', 'SALIDA', 'OBSERVACIONES']; worksheet.mergeCells('C6:D6'); worksheet.mergeCells('E6:F6');
     row7.values = ['', '', 'SALIDA', 'ENTRADA', 'SALIDA', 'ENTRADA', '', ''];
     [row6, row7].forEach(row => { for (let col = 1; col <= 8; col++) { const cell = row.getCell(col); cell.font = { bold: true }; cell.fill = headerFill; cell.border = thinBorder; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; } });
@@ -208,11 +208,11 @@ export async function generateAttendanceReport(
       currentRowIndex++; current.setDate(current.getDate() + 1);
     }
     
-    worksheet.getRow(currentRowIndex).height = 10;
+    worksheet.getRow(currentRowIndex).height = 7;
     const summaryFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF2F2F2' } };
     
     const resRow1 = worksheet.getRow(currentRowIndex + 1);
-    resRow1.height = 22;
+    resRow1.height = 20;
     resRow1.values = ['RET. INGRESO', retardosIngreso, `${minutosRetardoIngreso} min`, 'FALTAS', faltas, 'TIEMPO EXTRA', '', minutosExtra >= 40 ? `${Math.floor(minutosExtra / 60)}:${(minutosExtra % 60).toString().padStart(2, '0')} hrs` : '0:00 hrs'];
     
     worksheet.mergeCells(`F${currentRowIndex + 1}:G${currentRowIndex + 1}`);
@@ -239,8 +239,11 @@ export async function generateAttendanceReport(
     }) : [];
 
     let agreementRowIndex = currentRowIndex + 2;
+    worksheet.getRow(agreementRowIndex).height = 7;
+
+    let blankStartRow = agreementRowIndex + 1;
+
     if (employeePermsWithAgreement.length > 0) {
-      worksheet.getRow(agreementRowIndex).height = 12;
       agreementRowIndex++;
       const headerRow = worksheet.getRow(agreementRowIndex);
       headerRow.height = 20;
@@ -285,29 +288,31 @@ export async function generateAttendanceReport(
         for (let col = 1; col <= 8; col++) {
           agRow.getCell(col).border = thinBorder;
         }
-        agRow.height = 22;
+        agRow.height = 20;
         agreementRowIndex++;
       });
+      blankStartRow = agreementRowIndex;
     }
     
-    // Espacio amplio para la firma del empleado (5 renglones limpios con altura cómoda para firmar)
-    const fIdx = Math.max(currentRowIndex + 6, agreementRowIndex + 5);
-    for (let r = (employeePermsWithAgreement.length > 0 ? agreementRowIndex : currentRowIndex + 2); r <= fIdx; r++) {
-      worksheet.getRow(r).height = 18;
+    // Espacio para la firma del empleado: exactamente 4 filas en blanco de 20 px
+    for (let r = blankStartRow; r < blankStartRow + 4; r++) {
+      worksheet.getRow(r).height = 20;
     }
 
-    const nRow = worksheet.getRow(fIdx + 1);
+    const signatureRowIndex = blankStartRow + 4;
+    const nRow = worksheet.getRow(signatureRowIndex);
     nRow.height = 20;
-    worksheet.mergeCells(`B${fIdx + 1}:G${fIdx + 1}`);
+    worksheet.mergeCells(`B${signatureRowIndex}:G${signatureRowIndex}`);
     for (let col = 2; col <= 7; col++) {
       nRow.getCell(col).border = { top: { style: 'medium' } };
     }
     nRow.getCell(2).value = empleadoNombre.toUpperCase();
     nRow.getCell(2).font = { bold: true, size: 11 };
     nRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-    const dRow = worksheet.getRow(fIdx + 2);
-    dRow.height = 18;
-    worksheet.mergeCells(`B${fIdx + 2}:G${fIdx + 2}`);
+
+    const dRow = worksheet.getRow(signatureRowIndex + 1);
+    dRow.height = 20;
+    worksheet.mergeCells(`B${signatureRowIndex + 1}:G${signatureRowIndex + 1}`);
     dRow.getCell(2).value = (employeeData?.department || '').toUpperCase();
     dRow.getCell(2).font = { italic: true, size: 10 };
     dRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
