@@ -17,8 +17,23 @@ import { api } from './lib/api';
 type Tab = 'dashboard' | 'employees' | 'permissions' | 'reports' | 'schedules' | 'areas' | 'birthdays' | 'settings';
 
 function App() {
-    const [user, setUser] = useState<any>(null);
-    const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+    const [user, setUser] = useState<any>(() => {
+        try {
+            const saved = localStorage.getItem('jasana_user');
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    });
+    const [activeTab, setActiveTab] = useState<Tab>(() => {
+        try {
+            const saved = localStorage.getItem('jasana_active_tab') as Tab;
+            const validTabs: Tab[] = ['dashboard', 'employees', 'permissions', 'reports', 'schedules', 'areas', 'birthdays', 'settings'];
+            return validTabs.includes(saved) ? saved : 'dashboard';
+        } catch {
+            return 'dashboard';
+        }
+    });
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [stats, setStats] = useState({ employees: 0, areas: 0, schedules: 0, permissions: 0 });
@@ -82,6 +97,31 @@ function App() {
 
     useEffect(() => {
         if (user) {
+            localStorage.setItem('jasana_user', JSON.stringify(user));
+        } else {
+            localStorage.removeItem('jasana_user');
+            localStorage.removeItem('jasana_active_tab');
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (user && activeTab) {
+            localStorage.setItem('jasana_active_tab', activeTab);
+        }
+    }, [user, activeTab]);
+
+    useEffect(() => {
+        if (user) {
+            const isRestrictedForUser = (activeTab === 'areas' || activeTab === 'schedules') && user.role !== 'master';
+            const isRestrictedSettings = activeTab === 'settings' && user.role !== 'master' && user.role !== 'admin';
+            if (isRestrictedForUser || isRestrictedSettings) {
+                setActiveTab('dashboard');
+            }
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
             fetchStats();
         }
     }, [user, activeTab]);
@@ -89,6 +129,8 @@ function App() {
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
     const handleLogout = () => {
         setUser(null);
+        localStorage.removeItem('jasana_user');
+        localStorage.removeItem('jasana_active_tab');
         setActiveTab('dashboard');
     };
 
