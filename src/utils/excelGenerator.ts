@@ -92,7 +92,7 @@ export async function generateAttendanceReport(
         header: 0.3, footer: 0.3
       }
     };
-    worksheet.columns = [{ width: 17 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 9.5 }, { width: 12 }, { width: 22 }];
+    worksheet.columns = [{ width: 17 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 12 }, { width: 20 }];
 
     if (logoDataUrl) {
       const imageId = workbook.addImage({ base64: logoDataUrl, extension: 'png' });
@@ -135,7 +135,7 @@ export async function generateAttendanceReport(
     row7.height = px(15);
     row6.values = ['DIA', 'ENTRADA', 'DESAYUNO', '', 'COMIDA', '', 'SALIDA', 'OBSERVACIONES']; worksheet.mergeCells('C6:D6'); worksheet.mergeCells('E6:F6');
     row7.values = ['', '', 'SALIDA', 'ENTRADA', 'SALIDA', 'ENTRADA', '', ''];
-    [row6, row7].forEach(row => { for (let col = 1; col <= 8; col++) { const cell = row.getCell(col); cell.font = { bold: true }; cell.fill = headerFill; cell.border = thinBorder; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; } });
+    [row6, row7].forEach(row => { for (let col = 1; col <= 8; col++) { const cell = row.getCell(col); cell.font = { bold: true, size: 9 }; cell.fill = headerFill; cell.border = thinBorder; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false }; } });
 
     let retardosIngreso = 0, minutosRetardoIngreso = 0, faltas = 0, minutosExtra = 0, currentRowIndex = 8;
     const current = new Date(fecha_inicio);
