@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Edit2, Calendar, AlertCircle, History, Filter, Plus, Clock, CheckCircle2 } from 'lucide-react';
+import { Trash2, Edit2, Calendar, AlertCircle, History, Filter, Plus, Clock, CheckCircle2, Archive, ArchiveRestore } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, Employee, Permission } from '../lib/api';
 import { toast } from 'sonner';
@@ -189,6 +189,42 @@ export default function PermissionForm() {
     }
   };
 
+  const handleArchive = async (perm: Permission) => {
+    try {
+      await api.archivePermission(perm.id, true);
+      setPermissions(prev => prev.map(p => p.id === perm.id ? { ...p, is_archived: true } : p));
+      toast.success('Permiso archivado correctamente. Ya no se tomará en cuenta en los reportes.');
+    } catch (error) {
+      toast.error('Error al archivar el permiso');
+      console.error(error);
+    }
+  };
+
+  const handleUnarchive = async (perm: Permission) => {
+    try {
+      await api.archivePermission(perm.id, false);
+      setPermissions(prev => prev.map(p => p.id === perm.id ? { ...p, is_archived: false } : p));
+      toast.success('Permiso restaurado al ciclo activo');
+    } catch (error) {
+      toast.error('Error al restaurar el permiso');
+      console.error(error);
+    }
+  };
+
+  const handleArchiveAll = async () => {
+    if (activePermissions.length === 0) return;
+    if (!confirm(`¿Desea archivar los ${activePermissions.length} permisos activos de este ciclo? Una vez archivados ya no se tomarán en cuenta en los reportes de asistencias.`)) return;
+
+    try {
+      await api.archiveBatchPermissions(activePermissions.map(p => p.id), true);
+      setPermissions(prev => prev.map(p => ({ ...p, is_archived: true })));
+      toast.success('Todos los permisos del ciclo han sido archivados');
+    } catch (error) {
+      toast.error('Error al archivar permisos');
+      console.error(error);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'Fecha no válida';
     const cleanDate = dateStr.split('T')[0];
@@ -206,33 +242,12 @@ export default function PermissionForm() {
     });
   };
 
-  const getPayrollWeekStart = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const daysSinceFriday = (dayOfWeek + 2) % 7;
-    const start = new Date(today);
-    start.setDate(today.getDate() - daysSinceFriday);
-    start.setHours(0, 0, 0, 0);
-    return start;
-  };
-
   const getFilteredPermissions = (active: boolean) => {
-    const weekStart = getPayrollWeekStart();
-    const y = weekStart.getFullYear();
-    const m = String(weekStart.getMonth() + 1).padStart(2, '0');
-    const d = String(weekStart.getDate()).padStart(2, '0');
-    const weekStartStr = `${y}-${m}-${d}`;
-
     return permissions.filter(perm => {
-      if (!perm.permission_date) return false;
-      const dateStr = typeof perm.permission_date === 'string'
-        ? perm.permission_date.split('T')[0]
-        : '';
-
       if (active) {
-        return dateStr >= weekStartStr;
+        return !perm.is_archived;
       } else {
-        return dateStr < weekStartStr;
+        return Boolean(perm.is_archived);
       }
     });
   };
@@ -477,13 +492,25 @@ export default function PermissionForm() {
                   </h3>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">
                     {showHistory
-                      ? 'Depósito de registros anteriores'
-                      : 'Relación de autorizaciones del periodo actual'}
+                      ? 'Permisos archivados (excluidos de reportes)'
+                      : 'Relación de autorizaciones vigentes del periodo'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 w-full sm:w-auto">
+              <div className="flex items-center flex-wrap gap-3 w-full sm:w-auto">
+                {!showHistory && activePermissions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleArchiveAll}
+                    title="Archivar todos los permisos vigentes de este ciclo"
+                    className="px-6 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 flex items-center gap-2 shadow-sm"
+                  >
+                    <Archive size={16} />
+                    <span>Archivar Ciclo ({activePermissions.length})</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowHistory(!showHistory)}
                   className={`
@@ -494,12 +521,13 @@ export default function PermissionForm() {
                     }
                     `}
                 >
-                  {showHistory ? 'Ver Activos' : 'Ir al Historial'}
+                  {showHistory ? `Ver Activos (${activePermissions.length})` : `Ir al Historial (${historyPermissions.length})`}
                 </button>
 
                 {displayedPermissions.length > 0 && (
                   <button
                     onClick={handleDeleteAll}
+                    title="Eliminar todos los permisos visibles"
                     className="p-5 text-rose-500 bg-white hover:bg-rose-50 rounded-[1.5rem] border border-slate-100 hover:border-rose-100 transition-all shadow-sm hover:shadow-xl hover:shadow-rose-500/10"
                   >
                     <Trash2 size={24} />
@@ -519,8 +547,14 @@ export default function PermissionForm() {
                     <div className="w-28 h-28 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 border border-slate-100 shadow-inner">
                       <AlertCircle size={64} className="text-slate-200" />
                     </div>
-                    <h4 className="text-2xl font-black text-slate-900 tracking-tight">Sin Movimientos</h4>
-                    <p className="text-slate-400 font-medium max-w-xs mx-auto mt-2">No se han detectado registros para la vista seleccionada en este ciclo.</p>
+                    <h4 className="text-2xl font-black text-slate-900 tracking-tight">
+                      {showHistory ? 'Sin Permisos Archivados' : 'Sin Movimientos'}
+                    </h4>
+                    <p className="text-slate-400 font-medium max-w-xs mx-auto mt-2">
+                      {showHistory
+                        ? 'No se han detectado permisos archivados en el histórico.'
+                        : 'No se han detectado registros vigentes para este ciclo.'}
+                    </p>
                   </motion.div>
                 ) : (
                   <div className="grid gap-6">
@@ -578,14 +612,35 @@ export default function PermissionForm() {
                           </div>
 
                           <div className="flex items-center justify-end gap-3 xl:opacity-0 group-hover:opacity-100 transition-all border-t xl:border-t-0 pt-6 xl:pt-0 border-slate-50">
+                            {showHistory ? (
+                              <button
+                                type="button"
+                                onClick={() => handleUnarchive(perm)}
+                                title="Restaurar permiso al ciclo activo (incluir en reportes)"
+                                className="p-4 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-[1.2rem] transition-all border border-transparent hover:border-emerald-100"
+                              >
+                                <ArchiveRestore size={20} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleArchive(perm)}
+                                title="Archivar permiso (excluir de reportes)"
+                                className="p-4 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-[1.2rem] transition-all border border-transparent hover:border-amber-100"
+                              >
+                                <Archive size={20} />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleEdit(perm)}
+                              title="Editar registro"
                               className="p-4 text-slate-400 hover:text-brand-600 hover:bg-white rounded-[1.2rem] transition-all shadow-sm hover:shadow-md border border-transparent hover:border-slate-100"
                             >
                               <Edit2 size={20} />
                             </button>
                             <button
                               onClick={() => handleDelete(perm.id)}
+                              title="Eliminar permiso"
                               className="p-4 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-[1.2rem] transition-all border border-transparent hover:border-rose-100"
                             >
                               <Trash2 size={20} />

@@ -23,6 +23,7 @@ export const employeeSchema = z.object({
     no_empleado: z.string().optional().nullable(),
     department: z.string().optional(),
     area_id: z.string().uuid().nullable().optional(),
+    area_name: z.string().optional(),
     position: z.string().optional(),
     schedule_id: z.string().uuid().nullable().optional(),
     schedule_name: z.string().optional(),
@@ -52,6 +53,7 @@ export const permissionSchema = z.object({
     entry_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Hora de entrada inválida').optional().nullable(),
     time_compensation_agreement: z.string().optional(),
     is_compensation_paid: z.boolean().optional(),
+    is_archived: z.boolean().optional(),
 });
 
 export const settingsSchema = z.object({

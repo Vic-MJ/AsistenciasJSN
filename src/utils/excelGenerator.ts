@@ -43,6 +43,14 @@ const formatDate = (date: Date): string => `${DIAS_SEMANA[date.getDay()].charAt(
 
 const px = (pixels: number): number => pixels * 0.75;
 
+export function getISOWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
 export async function generateAttendanceReport(
   attendanceRecords: AttendanceRecord[],
   employees: Employee[],
@@ -51,7 +59,8 @@ export async function generateAttendanceReport(
   startDateInput: string,
   endDateInput: string,
   globalObservations: GlobalObservation[],
-  autoExit = false
+  autoExit = false,
+  periodType: 'todos' | 'semanal' | 'quincenal' = 'todos'
 ) {
   const workbook = new ExcelJS.Workbook();
   const employeeMap = new Map(employees.map(emp => [normalizeText(emp.full_name), emp]));
@@ -184,6 +193,7 @@ export async function generateAttendanceReport(
 
       const perm = employeeData ? permissions.find(p => {
         if (p.employee_id !== employeeData.id) return false;
+        if (p.is_archived) return false;
         const pDate = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : '';
         return pDate === dateKey;
       }) : null;
@@ -320,6 +330,18 @@ export async function generateAttendanceReport(
     dRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
   }
   const buffer = await workbook.xlsx.writeBuffer();
-  const today = new Date();
-  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `ASISTENCIAS_JASANA_${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}.xlsx`);
+  
+  const reportDate = (!isNaN(sYear) && !isNaN(sMonth) && !isNaN(sDay))
+    ? new Date(sYear, sMonth - 1, sDay)
+    : new Date();
+  const weekNumber = getISOWeekNumber(reportDate);
+
+  const periodLabel = periodType === 'semanal'
+    ? 'Semanal'
+    : periodType === 'quincenal'
+      ? 'Quincenal'
+      : 'General';
+
+  const fileName = `Asistencias_${periodLabel}_${weekNumber}.xlsx`;
+  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName);
 }

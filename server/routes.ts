@@ -185,13 +185,23 @@ router.get('/permissions', asyncHandler(async (req: Request, res: Response) => {
 
 router.post('/permissions', asyncHandler(async (req: Request, res: Response) => {
     const validated = permissionSchema.parse(req.body);
-    const { employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement, is_compensation_paid } = validated;
+    const { employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement, is_compensation_paid, is_archived } = validated;
     const cleanDate = permission_date.split('T')[0];
     const { rows } = await pool.query(
-        'INSERT INTO permissions (employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement, is_compensation_paid) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-        [employee_id, permission_type, reason, reason_other, cleanDate, exit_time, entry_time, time_compensation_agreement || '', Boolean(is_compensation_paid)]
+        'INSERT INTO permissions (employee_id, permission_type, reason, reason_other, permission_date, exit_time, entry_time, time_compensation_agreement, is_compensation_paid, is_archived) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+        [employee_id, permission_type, reason, reason_other, cleanDate, exit_time, entry_time, time_compensation_agreement || '', Boolean(is_compensation_paid), Boolean(is_archived)]
     );
     res.json(rows[0]);
+}));
+
+router.post('/permissions/archive-batch', asyncHandler(async (req: Request, res: Response) => {
+    const { ids, is_archived = true } = req.body;
+    if (Array.isArray(ids) && ids.length > 0) {
+        await pool.query('UPDATE permissions SET is_archived = $1 WHERE id = ANY($2)', [Boolean(is_archived), ids]);
+    } else {
+        await pool.query('UPDATE permissions SET is_archived = $1 WHERE is_archived = false', [Boolean(is_archived)]);
+    }
+    res.json({ success: true });
 }));
 
 router.put('/permissions/:id', asyncHandler(async (req: Request, res: Response) => {

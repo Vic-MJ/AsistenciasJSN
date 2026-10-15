@@ -59,6 +59,7 @@ export interface Permission {
     entry_time: string | null;
     time_compensation_agreement?: string | null;
     is_compensation_paid?: boolean;
+    is_archived?: boolean;
     created_at: string;
 }
 
@@ -163,6 +164,19 @@ export const api = {
             method: 'DELETE',
         });
         if (!res.ok) throw new Error('Failed to delete permission');
+    },
+
+    archivePermission: async (id: string, is_archived: boolean = true): Promise<Permission> => {
+        return api.updatePermission(id, { is_archived });
+    },
+
+    archiveBatchPermissions: async (ids?: string[], is_archived: boolean = true): Promise<void> => {
+        const res = await fetch(`${API_URL}/permissions/archive-batch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, is_archived }),
+        });
+        if (!res.ok) throw new Error('Failed to archive permissions');
     },
 
     deleteAllPermissions: async (): Promise<void> => {

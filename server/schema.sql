@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS permissions (
   entry_time time,
   time_compensation_agreement text DEFAULT '',
   is_compensation_paid boolean DEFAULT false,
+  is_archived boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
 

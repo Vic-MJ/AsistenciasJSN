@@ -60,9 +60,11 @@ export default function AttendanceProcessor() {
     } catch (e: any) { toast.error(e.message); } finally { setProcessing(false); }
   };
 
+  const activePermissions = permissions.filter(p => !p.is_archived);
+
   const handleGenerateClick = () => {
     if (!useOdooData) { toast.error('Obtenga datos de Odoo primero'); return; }
-    if (permissions.length > 0) setShowPermissionWarning(true); else processAndGenerate();
+    if (activePermissions.length > 0) setShowPermissionWarning(true); else processAndGenerate();
   };
 
   const processAndGenerate = async () => {
@@ -80,7 +82,7 @@ export default function AttendanceProcessor() {
       if (!useOdooData) { toast.error('No hay registros válidos'); return; }
       const records = odooAttendance.map(r => ({ ...r, entrada: new Date(r.entrada), salida: r.salida ? new Date(r.salida) : null }));
 
-      await generateAttendanceReport(records, freshEmployees, permissions, logoPreview, startDate, endDate, globalObservations, autoExit);
+      await generateAttendanceReport(records, freshEmployees, activePermissions, logoPreview, startDate, endDate, globalObservations, autoExit, periodType);
       toast.success('Reporte generado');
     } catch (e) { toast.error('Error al generar'); } finally { setProcessing(false); }
   };
@@ -100,7 +102,7 @@ export default function AttendanceProcessor() {
 
       const records = odooAttendance.map(r => ({ ...r, entrada: new Date(r.entrada), salida: r.salida ? new Date(r.salida) : new Date(r.entrada) }));
 
-      await generateIncidentsReport(records, freshEmployees, permissions, startDate, endDate, globalObservations);
+      await generateIncidentsReport(records, freshEmployees, activePermissions, startDate, endDate, globalObservations, periodType);
       toast.success('Incidencias generadas');
     } catch (e) { toast.error('Error'); } finally { setProcessing(false); }
   };
@@ -120,7 +122,7 @@ export default function AttendanceProcessor() {
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-brand-500 to-emerald-500" />
               <div className="flex flex-col items-center text-center gap-6 mb-8">
                 <div className="p-3 bg-amber-50 text-amber-600 rounded-xl"><AlertTriangle size={32} /></div>
-                <div><h3 className="text-xl font-bold text-slate-800 mb-2 tracking-tight">Cruces de Información</h3><p className="text-slate-500 font-normal text-sm leading-normal">Se han identificado <span className="text-brand-600 font-semibold">{permissions.length} autorizaciones</span>.</p></div>
+                <div><h3 className="text-xl font-bold text-slate-800 mb-2 tracking-tight">Cruces de Información</h3><p className="text-slate-500 font-normal text-sm leading-normal">Se han identificado <span className="text-brand-600 font-semibold">{activePermissions.length} autorizaciones vigentes</span>.</p></div>
               </div>
               <div className="flex gap-3"><button onClick={() => setShowPermissionWarning(false)} className="flex-1 py-2.5 px-4 bg-slate-100 text-slate-500 rounded-xl font-semibold uppercase tracking-wider text-[10px]">Cerrar</button><button onClick={processAndGenerate} className="flex-[2] btn-premium py-2.5 rounded-xl font-semibold text-xs">Confirmar y Generar</button></div>
             </motion.div>
@@ -166,7 +168,7 @@ export default function AttendanceProcessor() {
           <ReportActions processing={processing} hasFile={useOdooData} autoExit={autoExit} onAutoExitChange={setAutoExit} onGenerateAttendance={handleGenerateClick} onGenerateIncidents={handleIncidentsClick} />
         </div>
         <div className="lg:col-span-4 space-y-6">
-          <SystemStatus employeeCount={employees.length} permissionCount={permissions.length} />
+          <SystemStatus employeeCount={employees.length} permissionCount={activePermissions.length} />
         </div>
       </div>
     </div>

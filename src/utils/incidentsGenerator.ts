@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Employee, Permission } from '../lib/api';
 import { GlobalObservation } from '../components/attendance/GlobalObservationForm';
+import { getISOWeekNumber } from './excelGenerator';
 
 interface AttendanceRecord {
     empleado: string;
@@ -40,7 +41,8 @@ export async function generateIncidentsReport(
     permissions: Permission[],
     startDateInput: string,
     endDateInput: string,
-    globalObservations: GlobalObservation[]
+    globalObservations: GlobalObservation[],
+    periodType: 'todos' | 'semanal' | 'quincenal' = 'todos'
 ) {
     const workbook = new ExcelJS.Workbook();
     const summarySheet = workbook.addWorksheet('Resumen de Incidencias');
@@ -86,6 +88,7 @@ export async function generateIncidentsReport(
             const entries = registro_dias.get(dateKey);
             const perm = employeeData ? permissions.find(p => {
                 if (p.employee_id !== employeeData.id) return false;
+                if (p.is_archived) return false;
                 const pDate = typeof p.permission_date === 'string' ? p.permission_date.split('T')[0] : new Date(p.permission_date).toISOString().split('T')[0];
                 return pDate === dateKey;
             }) : null;
@@ -114,6 +117,18 @@ export async function generateIncidentsReport(
         }
         summarySheet.addRow({ no: employeeNumber, nombre: empleadoNombre, depto: departamento, retardos: countRetardos, faltas: countFaltas, diaFalta: diasFalta.join(', ') });
     }
-    const today = new Date(), buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `INCIDENCIAS_JASANA_${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}.xlsx`);
+    const reportDate = (!isNaN(sYear) && !isNaN(sMonth) && !isNaN(sDay))
+        ? new Date(sYear, sMonth - 1, sDay)
+        : new Date();
+    const weekNumber = getISOWeekNumber(reportDate);
+
+    const periodLabel = periodType === 'semanal'
+        ? 'Semanal'
+        : periodType === 'quincenal'
+            ? 'Quincenal'
+            : 'General';
+
+    const fileName = `Incidencias_${periodLabel}_${weekNumber}.xlsx`;
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName);
 }

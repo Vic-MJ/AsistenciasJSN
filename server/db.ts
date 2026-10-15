@@ -26,6 +26,7 @@ pool.query(`
   ALTER TABLE employees ADD COLUMN IF NOT EXISTS no_empleado text DEFAULT '';
   ALTER TABLE permissions ADD COLUMN IF NOT EXISTS time_compensation_agreement text DEFAULT '';
   ALTER TABLE permissions ADD COLUMN IF NOT EXISTS is_compensation_paid boolean DEFAULT false;
+  ALTER TABLE permissions ADD COLUMN IF NOT EXISTS is_archived boolean DEFAULT false;
 `).then(() => {
   console.log('Database user schema migrations applied successfully.');
 }).catch((err) => {
